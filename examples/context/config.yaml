@@ -1,0 +1,7 @@
+# This YAML file provides configuration for the compute pod building processes
+
+# Provide locations for the configuration for each compute pod and users
+#
+certificateAuthorityDir: certAuthority
+podsDir: pods
+usersDir: users

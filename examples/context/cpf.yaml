@@ -1,0 +1,53 @@
+# This YAML file describes the context Compute Pods
+
+# We start by giving a name to this federation of compute pods
+federationName: playGround
+
+# Now we specify the certificate key size... the larger you choose the more 
+# secure the communitcation will be... but it will take more time to 
+# generate
+keySize: 4096
+
+# We must specify details for the Certificate Authority
+certificateAuthority:
+  organization: PerceptiSys Ltd (ConTeXt Nursery)
+  country: UK
+  province: West Midlands
+  locality: Coventry
+  commonName: playGround CA
+  validFor: 
+    years: 10
+    months: 0 
+    days: 0
+
+# We now specify which machines will run a compute pod
+
+# We can start by specifying the standard defaults for any compute pod 
+# interface. 
+#
+# compute pod_defaults:
+#   port: 8080
+
+# Now we specify the compute pods host names as well as any non-standard 
+# ports....
+#
+# EXACTLY one of the following compute pods should be declared as the primary 
+# compute pod. If there are multiple or none, we choose the first we 
+# find... 
+#
+# NOTE: The hosts names should be the name used by your (internal) network
+#
+# NOTE: If a given host has multiple names in your network, the host names 
+# can be a comma separated list of these names.
+#
+computePods:
+  - host: nn01, 10.42.0.1
+  - host: nn02
+  - host: gg02
+  - host: music1
+  - host: cnDev.kvm
+  - host: pi01
+
+# Now we provide a list of the individual user's names or email addresses.
+users:
+  - name: stephen@perceptisys.co.uk
