@@ -6,6 +6,7 @@ import jinja2
 import logging
 import os
 import shutil
+import time
 import yaml
 
 from cpb.utils import *
@@ -24,12 +25,12 @@ def setDefault(eData, key, value) :
   if key not in eData :
     eData[key] = value
 
-def normalizeConfigSection(config, eData, workDirKey, caData) :
+def normalizeEntity(config, eData, eNum, workDirKey, caData) :
   if workDirKey == 'certificateAuthorityDir' :
     if 'federationName' not in eData :
       logging.error("All certificate authorities MUST have a 'federationName' key")
       sys.exit(-1)
-    eData['name'] = eData['federationName']
+    eData['name'] = eData['federationName'] + '-ca'
   if workDirKey == 'podsDir' :
     if 'host' not in eData :
       logging.error("All pods MUST have a 'host' key")
@@ -43,13 +44,16 @@ def normalizeConfigSection(config, eData, workDirKey, caData) :
   eData['name'] = eData['name'].replace("@", "-")
   eData['workDir'] = os.path.join(config[workDirKey], eData['name'].replace(" ",""))
 
-  setDefault(eData, 'sslConfigFile', eData['name'] + '-ca.conf')
+  setDefault(eData, 'sslConfigFile', eData['name'] + '.conf')
   sanitizeFilePath(eData, 'sslConfigFile', eData['workDir'])
 
-  setDefault(eData, 'certFile', eData['name'] + '-ca-crt.pem')
+  setDefault(eData, 'csrFile', eData['name'] + '-csr.conf')
+  sanitizeFilePath(eData, 'csrFile', eData['workDir'])
+
+  setDefault(eData, 'certFile', eData['name'] + '-crt.pem')
   sanitizeFilePath(eData, 'certFile', eData['workDir'])
 
-  setDefault(eData, 'keyFile', eData['name'] + '-ca-key.pem')
+  setDefault(eData, 'keyFile', eData['name'] + '-key.pem')
   sanitizeFilePath(eData, 'keyFile', eData['workDir'])
 
   setDefault(eData, 'keySize',        config['cpf']['keySize'])
@@ -59,9 +63,9 @@ def normalizeConfigSection(config, eData, workDirKey, caData) :
   setDefault(eData, 'locality',       caData['locality'])
   setDefault(eData, 'organization',   caData['organization'])
   setDefault(eData, 'federationName', caData['federationName'])
+  setDefault(eData, 'serialNum',      caData['serialNum']+eNum)
   
 def normalizeConfig(config) :
-  config['federationName'] = config['cpf']['federationName']
 
   if 'cpf' not in config :
     logging.error("A compute pod federation (cpf) descript MUST be provided!")
@@ -70,6 +74,8 @@ def normalizeConfig(config) :
   if 'federationName' not in config['cpf'] :
     logging.error("A compute pod federation name MUST be provided!")
     sys.exit(-1)
+
+  config['federationName'] = config['cpf']['federationName']
 
   if 'certificateAuthority' not in config['cpf'] :
     logging.error("A compute pod federation certificate authority MUST be provided!")
@@ -91,13 +97,20 @@ def normalizeConfig(config) :
       days = days + validFor['days']
     caData['days'] = days
 
-  normalizeConfigSection(config, caData, 'certificateAuthorityDir', caData)
+  if 'serialNum' not in caData :
+    caData['serialNum'] = int(time.time()) * 10000
+
+  entityNum = 0
+  normalizeEntity(config, caData, entityNum, 'certificateAuthorityDir', caData)
+  entityNum += 1
 
   for aPod in config['cpf']['computePods'] :
-    normalizeConfigSection(config, aPod, 'podsDir', caData)
+    normalizeEntity(config, aPod, entityNum, 'podsDir', caData)
+    entityNum += 1
 
   for aUser in config['cpf']['users'] :
-    normalizeConfigSection(config, aUser, 'usersDir', caData)
+    normalizeEntity(config, aUser, entityNum, 'usersDir', caData)
+    entityNum += 1
   
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
@@ -211,7 +224,7 @@ def createCertFor(msg, certData, caData) :
       "[ the_cert ]",
       "  basicConstraints = CA:FALSE",
       "  keyUsage         = nonRepudiation, digitalSignature, keyAgreement, keyEncipherment",
-      "  extenedKeyUsage  = serverAuth, clientAuth",
+      "  extendedKeyUsage = serverAuth, clientAuth",
       "  nsCertType       = client, server",
     ]
     if caData is None :
@@ -233,18 +246,51 @@ def createCertFor(msg, certData, caData) :
     configFile.write("\n")
     configFile.close()
 
+  if caData is not None :
+    if os.path.isfile(certData['csrFile']) :
+      logging.info("{} {} certificate signing request file exists -- not recreating".format(msg, certData['name']))
+    else :
+      # client/server CSR
+      # use openssl x509 with one or more of the -CA options
+      # OR use openssl req with one or more of the -CA options
+      # Seems to NEED two step...
+      #  ... create csr with openssl req and then
+      #  ... sign it with openssl x509 :-(
+      #
+      # see: https://gist.github.com/nordineb/4e8f9122f6962c33e56f02d0d5794b3d
+      #
+      cmd = "openssl req -new -key {} -out {} -config {}".format(
+        certData['keyFile'], certData['csrFile'], certData['sslConfigFile'])
+
+      click.echo("\ncreating the {} {} certificate signing request file".format(msg, certData['name']))
+      click.echo("-------------------------------")
+      click.echo(cmd)
+      click.echo("----csr-file-generation----")
+      os.system(cmd)
+      click.echo("----csr-file-generation----")
+
   if os.path.isfile(certData['certFile']) :
     logging.info("{} {} certificate file exists -- not recreating".format(msg, certData['name']))
   else :
     # self signed CA
-    cmd = "openssl req -x509 -key {} -out {} -config {} -days {}".format(
-      certData['keyFile'], certData['certFile'], certData['sslConfigFile'], certData['days'])
+    cmd = "openssl req -x509 -key {} -out {} -config {} -days {} -set_serial {}".format(
+      certData['keyFile'], certData['certFile'], 
+      certData['sslConfigFile'], certData['days'],
+      certData['serialNum'])
     if caData is not None :
       # client/server CSR
       # use openssl x509 with one or more of the -CA options
       # OR use openssl req with one or more of the -CA options
-      cmd = "openssl req -key {} -cert {} -out {} -config {} -days {}".format(
-        certData['keyFile'], caData['certFile'], certData['certFile'], certData['sslConfigFile'], certData['days'])
+      # Seems to NEED two step...
+      #  ... create csr with openssl req and then
+      #  ... sign it with openssl x509 :-(
+      #
+      # see: https://gist.github.com/nordineb/4e8f9122f6962c33e56f02d0d5794b3d
+      #
+      cmd = "openssl x509 -req -in {} -out {} -CA {} -CAkey {} -days {} -set_serial {}".format(
+        certData['csrFile'], certData['certFile'],
+        caData['certFile'], caData['keyFile'],
+        certData['days'], certData['serialNum'])
 
     click.echo("\ncreating the {} {} certificate file".format(msg, certData['name']))
     click.echo("-------------------------------")
@@ -252,6 +298,7 @@ def createCertFor(msg, certData, caData) :
     click.echo("----cert-file-generation----")
     os.system(cmd)
     click.echo("----cert-file-generation----")
+  click.echo("")
 
 @click.command("create")
 @click.pass_context
