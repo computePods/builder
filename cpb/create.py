@@ -10,39 +10,56 @@ import yaml
 
 from cpb.utils import *
 
-def normalizeConfigSection(config, configSection, workDirKey) :
+# We use openssl from the command line...
+# 
+# See: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
+# 
+# Examples: 
+#   https://megamorf.gitlab.io/cheat-sheets/openssl/
+#   https://access.redhat.com/solutions/28965
+#   https://gist.github.com/thisismitch/bf52b0c1823da27ff353
+#
+
+def setDefault(eData, key, value) :
+  if key not in eData :
+    eData[key] = value
+
+def normalizeConfigSection(config, eData, workDirKey, caData) :
   if workDirKey == 'certificateAuthorityDir' :
-    if 'federationName' not in configSection :
+    if 'federationName' not in eData :
       logging.error("All certificate authorities MUST have a 'federationName' key")
       sys.exit(-1)
-    configSection['name'] = configSection['federationName']
+    eData['name'] = eData['federationName']
   if workDirKey == 'podsDir' :
-    if 'host' not in configSection :
+    if 'host' not in eData :
       logging.error("All pods MUST have a 'host' key")
       sys.exit(-1)
-    configSection['name'] = configSection['host'].split(',')[0]
+    eData['name'] = eData['host'].split(',')[0]
   if workDirKey == 'usersDir' :
-    if 'name' not in configSection :
+    if 'name' not in eData :
       logging.error("All users MUST have a 'name' key")
       sys.exit(-1)
-      
-  configSection['workDir'] = os.path.join(config[workDirKey], configSection['name'].replace(" ",""))
+
+  eData['name'] = eData['name'].replace("@", "-")
+  eData['workDir'] = os.path.join(config[workDirKey], eData['name'].replace(" ",""))
+
+  setDefault(eData, 'sslConfigFile', eData['name'] + '-ca.conf')
+  sanitizeFilePath(eData, 'sslConfigFile', eData['workDir'])
+
+  setDefault(eData, 'certFile', eData['name'] + '-ca-crt.pem')
+  sanitizeFilePath(eData, 'certFile', eData['workDir'])
+
+  setDefault(eData, 'keyFile', eData['name'] + '-ca-key.pem')
+  sanitizeFilePath(eData, 'keyFile', eData['workDir'])
+
+  setDefault(eData, 'keySize',        config['cpf']['keySize'])
+  setDefault(eData, 'days',           caData['days'])
+  setDefault(eData, 'country',        caData['country'])
+  setDefault(eData, 'province',       caData['province'])
+  setDefault(eData, 'locality',       caData['locality'])
+  setDefault(eData, 'organization',   caData['organization'])
+  setDefault(eData, 'federationName', caData['federationName'])
   
-  if 'sslConfigFile' not in configSection :
-    configSection['sslConfigFile'] = config['federationName'] + '-ca.conf'
-  sanitizeFilePath(configSection, 'sslConfigFile', configSection['workDir'])
-
-  if 'certFile' not in config :
-    configSection['certFile'] = config['federationName'] + '-ca-crt.pem'
-  sanitizeFilePath(configSection, 'certFile', configSection['workDir'])
-
-  if 'keyFile' not in config :
-    configSection['keyFile']  = config['federationName'] + '-ca-key.pem'
-  sanitizeFilePath(configSection, 'keyFile', configSection['workDir'])
-
-  if 'keySize' not in configSection :
-    configSection['keySize'] = config['cpf']['keySize']
-
 def normalizeConfig(config) :
   config['federationName'] = config['cpf']['federationName']
 
@@ -74,66 +91,161 @@ def normalizeConfig(config) :
       days = days + validFor['days']
     caData['days'] = days
 
-  normalizeConfigSection(config, caData, 'certificateAuthorityDir')
+  normalizeConfigSection(config, caData, 'certificateAuthorityDir', caData)
 
   for aPod in config['cpf']['computePods'] :
-    normalizeConfigSection(config, aPod, 'podsDir')
+    normalizeConfigSection(config, aPod, 'podsDir', caData)
 
   for aUser in config['cpf']['users'] :
-    normalizeConfigSection(config, aUser, 'usersDir')
+    normalizeConfigSection(config, aUser, 'usersDir', caData)
   
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
 
 # see: https://stackoverflow.com/questions/10175812/how-to-create-a-self-signed-certificate-with-openssl
-def createWorkDirFor(msg, configSection) :
-  if not os.path.isdir(configSection['workDir']) :
-    logging.info("creating the {} {} work directory".format(msg, configSection['name']))
-    os.makedirs(configSection['workDir'], exist_ok=True)
+def createWorkDirFor(msg, eData) :
+  if not os.path.isdir(eData['workDir']) :
+    logging.info("creating the {} {} work directory".format(msg, eData['name']))
+    os.makedirs(eData['workDir'], exist_ok=True)
 
-def createKeyFor(msg, configSection) :
-  if os.path.isfile(configSection['keyFile']) :
+def createKeyFor(msg, eData) :
+  if os.path.isfile(eData['keyFile']) :
     logging.info("{} key file exists -- not recreating".format(msg))
   else :
     cmd = "openssl genpkey -algorithm RSA -out {} -pkeyopt rsa_keygen_bits:{}".format(
-      configSection['keyFile'], configSection['keySize'])
-    click.echo("\ncreating the {} {} rsa key".format(msg, configSection['name']))
+      eData['keyFile'], eData['keySize'])
+    click.echo("\ncreating the {} {} rsa key".format(msg, eData['name']))
     click.echo("-------------------------------")
     click.echo(cmd)
     click.echo("----rsa-key-file-generation----")
     os.system(cmd)
     click.echo("----rsa-key-file-generation----")
 
-def createCertFor(msg, certData) :
+# Cerate a new "base" x509 Certificate (in the openSSL configuration) 
+# based upon the CA's configured certificate information. 
+#
+#    SignatureAlgorithm: x509.SHA512WithRSA, (command line??)
+#    serialNumber ?? 
+#    days on command line
+#
+#    organization
+#    organizationalUnitName
+#    countryName
+#    stateOrProvinceName
+#    localityName
+#    commonName
+#    emailAddresses
+#
+# Various fields specific to a particular certificate use will still need 
+# to be filed in by the CA, Nursery, or User certificate code 
+# respectively.
+#
+# see: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
+#
+# CA: 
+#   basicConstraints = CA:TRUE
+#   keyUsage         =  nonRepudiation, digitalSignature
+#   nsCertType       = sslCA, objCA
+#
+# PODS:
+#  nCert.ExtKeyUsage = []x509.ExtKeyUsage{
+#      x509.ExtKeyUsageClientAuth,
+#      x509.ExtKeyUsageServerAuth,
+#    }
+#  nCert.SubjectKeyId = []byte{1,2,3,4,6}
+#  nCert.KeyUsage = x509.KeyUsageDigitalSignature |
+#      x509.KeyUsageKeyEncipherment |
+#      x509.KeyUsageKeyAgreement |
+#      x509.KeyUsageDataEncipherment
+#
+#  // Add the DNSNames and IPAddresses
+#  for _, aHost := range nursery.Hosts {
+#    possibleIPAddress := net.ParseIP(aHost)
+#    if possibleIPAddress != nil {
+#      nCert.IPAddresses = append(nCert.IPAddresses, possibleIPAddress)
+#    } else {
+#      nCert.DNSNames = append(nCert.DNSNames, aHost)
+#    }
+#  }
+#
+# USERS:
+#  uCert.ExtKeyUsage  = []x509.ExtKeyUsage{ x509.ExtKeyUsageClientAuth }
+#  uCert.SubjectKeyId = []byte{1,2,3,4,6}
+#  uCert.KeyUsage     = x509.KeyUsageDigitalSignature |
+#      x509.KeyUsageKeyEncipherment |
+#      x509.KeyUsageKeyAgreement |
+#      x509.KeyUsageDataEncipherment
+#
+# It is CRITICAL that we use DIFFERENT serial numbers for each of the: 
+#  - Certificate Authority:  1,
+#  - Clien/Server:           (1<<5) + nurseryNum, and
+#  - User:                   (2<<5) + userNum
+# certificates. We do this using the "serialNumModifier" parameter. (This 
+# assumes a maximum of 2^5 - 1 = 31 nurseries or 2^6 - 1 = 63 users) 
+#
+
+def createCertFor(msg, certData, caData) :
   if os.path.isfile(certData['sslConfigFile']) :
     logging.info("{} {} openssl configuration file exists -- not recreating".format(msg, certData['name']))
   else :
     click.echo("\ncreating the {} {} openssl configuration".format(msg, certData['name']))
-    config = [
-      "",
+    configReq = [
       "[ req ]",
       "  prompt             = no",
       "  encrypt_key        = no",
-      "  distinguished_name = {}_details".format(certData['name']),
-      "",
-      "[ {}_details ]".format(certData['name']),
+      "  distinguished_name = the_dn",
+      "  x509_extensions    = the_cert",
+    ]
+    configDN = [
+      "[ the_dn ]",
       "  countryName            = {}".format(certData['country']),
       "  stateOrProvinceName    = {}".format(certData['province']),
       "  localityName           = {}".format(certData['locality']),
       "  organizationName       = {}".format(certData['organization']),
       "  organizationalUnitName = {}".format(certData['federationName']),
       "  commonName             = {}".format(certData['name']),
-      ""
     ]
+
+    # client/server (both pods and users)    
+    configCert = [
+      "[ the_cert ]",
+      "  basicConstraints = CA:FALSE",
+      "  keyUsage         = nonRepudiation, digitalSignature, keyAgreement, keyEncipherment",
+      "  extenedKeyUsage  = serverAuth, clientAuth",
+      "  nsCertType       = client, server",
+    ]
+    if caData is None :
+      # certificate authority
+      configCert = [
+        "[ the_cert ]",
+        "  basicConstraints = CA:TRUE",
+        "  keyUsage         = nonRepudiation, digitalSignature, keyCertSign, cRLSign",
+        "  nsCertType       = sslCA, objCA",
+      ]
+      
     configFile = open(certData['sslConfigFile'], "w")
-    configFile.write("\n".join(config))
+    configFile.write("\n")
+    configFile.write("\n".join(configReq))
+    configFile.write("\n")
+    configFile.write("\n".join(configDN))
+    configFile.write("\n")
+    configFile.write("\n".join(configCert))
+    configFile.write("\n")
     configFile.close()
 
   if os.path.isfile(certData['certFile']) :
     logging.info("{} {} certificate file exists -- not recreating".format(msg, certData['name']))
   else :
+    # self signed CA
     cmd = "openssl req -x509 -key {} -out {} -config {} -days {}".format(
       certData['keyFile'], certData['certFile'], certData['sslConfigFile'], certData['days'])
+    if caData is not None :
+      # client/server CSR
+      # use openssl x509 with one or more of the -CA options
+      # OR use openssl req with one or more of the -CA options
+      cmd = "openssl req -key {} -cert {} -out {} -config {} -days {}".format(
+        certData['keyFile'], caData['certFile'], certData['certFile'], certData['sslConfigFile'], certData['days'])
+
     click.echo("\ncreating the {} {} certificate file".format(msg, certData['name']))
     click.echo("-------------------------------")
     click.echo(cmd)
@@ -156,14 +268,14 @@ def create(ctx):
   caData = config['cpf']['certificateAuthority']
   createWorkDirFor("certificate authority", caData)
   createKeyFor("certificate authority", caData)
-  createCertFor("certificate authority", caData)
+  createCertFor("certificate authority", caData, None)
   
   for aPod in config['cpf']['computePods'] :
     createWorkDirFor("pod", aPod)
     createKeyFor("pod", aPod)
-    createCertFor("pod", aPod)
+    createCertFor("pod", aPod, caData)
 
   for aUser in config['cpf']['users'] :
     createWorkDirFor("user", aUser)
     createKeyFor("user", aUser)
-    createCertFor("user", aUser)
+    createCertFor("user", aUser, caData)
