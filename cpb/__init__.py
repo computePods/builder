@@ -27,10 +27,19 @@ defaultConfig = {
   'imageYaml'               : "image.yaml",
   'cpfYaml'                 : "cpf.yaml",
   'cekitConfig'             : "cekit.ini",
-  'certificateAuthorityDir' : "ca",
+  'certificateAuthorityDir' : "certAuthority",
   'podsDir'                 : "pods",
   'usersDir'                : "users",
   'verbose'                 : False
+}
+
+
+podDefaults = {
+  'natsMsgs'           : 4222,
+  'natsRouting'        : 6222,
+  'natsMonitor'        : 8222,
+  'syncThing'          : 22000, # both TCP and UDP
+  'syncThingDiscovery' : 21027 # UDP
 }
 
 def loadConfig(configPath, verbose):

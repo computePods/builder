@@ -14,6 +14,7 @@ from cpb.utils import *
 # We use openssl from the command line...
 # 
 # See: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
+# see: https://stackoverflow.com/questions/10175812/how-to-create-a-self-signed-certificate-with-openssl
 # 
 # Examples: 
 #   https://megamorf.gitlab.io/cheat-sheets/openssl/
@@ -115,7 +116,6 @@ def normalizeConfig(config) :
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
 
-# see: https://stackoverflow.com/questions/10175812/how-to-create-a-self-signed-certificate-with-openssl
 def createWorkDirFor(msg, eData) :
   if not os.path.isdir(eData['workDir']) :
     logging.info("creating the {} {} work directory".format(msg, eData['name']))
@@ -138,8 +138,8 @@ def createKeyFor(msg, eData) :
 # based upon the CA's configured certificate information. 
 #
 #    SignatureAlgorithm: x509.SHA512WithRSA, (command line??)
-#    serialNumber ?? 
-#    days on command line
+#    serialNumber (we use unixTimeStamp * 10000 + entityNumber)
+#    days on command line (default is 10 366 day years)
 #
 #    organization
 #    organizationalUnitName
@@ -153,14 +153,12 @@ def createKeyFor(msg, eData) :
 # to be filed in by the CA, Nursery, or User certificate code 
 # respectively.
 #
-# see: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
-#
 # CA: 
 #   basicConstraints = CA:TRUE
-#   keyUsage         =  nonRepudiation, digitalSignature
+#   keyUsage         =  nonRepudiation, digitalSignature, keyCertSign, cRLSign
 #   nsCertType       = sslCA, objCA
 #
-# PODS:
+# PODS and Users: (all client/servers)
 #  nCert.ExtKeyUsage = []x509.ExtKeyUsage{
 #      x509.ExtKeyUsageClientAuth,
 #      x509.ExtKeyUsageServerAuth,
@@ -190,11 +188,11 @@ def createKeyFor(msg, eData) :
 #      x509.KeyUsageDataEncipherment
 #
 # It is CRITICAL that we use DIFFERENT serial numbers for each of the: 
-#  - Certificate Authority:  1,
-#  - Clien/Server:           (1<<5) + nurseryNum, and
-#  - User:                   (2<<5) + userNum
+#  - Certificate Authority:  unixTimeStamp + 0,
+#  - Clien/Server:           unixTimeStamp + entityNum (pods first)
+#  - User:                   unixTimeStamp + entiryNum (users second)
 # certificates. We do this using the "serialNumModifier" parameter. (This 
-# assumes a maximum of 2^5 - 1 = 31 nurseries or 2^6 - 1 = 63 users) 
+# assumes a maximum of 10,000 pods/users) 
 #
 
 def createCertFor(msg, certData, caData) :
@@ -251,12 +249,6 @@ def createCertFor(msg, certData, caData) :
       logging.info("{} {} certificate signing request file exists -- not recreating".format(msg, certData['name']))
     else :
       # client/server CSR
-      # use openssl x509 with one or more of the -CA options
-      # OR use openssl req with one or more of the -CA options
-      # Seems to NEED two step...
-      #  ... create csr with openssl req and then
-      #  ... sign it with openssl x509 :-(
-      #
       # see: https://gist.github.com/nordineb/4e8f9122f6962c33e56f02d0d5794b3d
       #
       cmd = "openssl req -new -key {} -out {} -config {}".format(
@@ -278,13 +270,7 @@ def createCertFor(msg, certData, caData) :
       certData['sslConfigFile'], certData['days'],
       certData['serialNum'])
     if caData is not None :
-      # client/server CSR
-      # use openssl x509 with one or more of the -CA options
-      # OR use openssl req with one or more of the -CA options
-      # Seems to NEED two step...
-      #  ... create csr with openssl req and then
-      #  ... sign it with openssl x509 :-(
-      #
+      # client/server Cert (using CSR created above)
       # see: https://gist.github.com/nordineb/4e8f9122f6962c33e56f02d0d5794b3d
       #
       cmd = "openssl x509 -req -in {} -out {} -CA {} -CAkey {} -days {} -set_serial {}".format(

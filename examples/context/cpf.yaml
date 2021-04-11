@@ -26,14 +26,26 @@ certificateAuthority:
 # interface. 
 #
 # compute pod_defaults:
-#   port: 8080
-
+#   hosts: # set in pod
+#     - host:ip
+#   publish: # set in pod
+#     - 0.0.0.0:8080:80
+#   volume: # set in container (all)
+#     - /a/host/directory/path:/a/container/directory/path:ro
+#   env: # set in container (all)
+#    aKey: aValue
+#   secret: # set in container (all)
+#    - aSecretName # (see podman secret)
+#   maxLoadPerCPU: .5 # a value honoured by the computePods system
+# (see: https://stackoverflow.com/a/14840102
+#   or: https://stackoverflow.com/a/55423170
+#  and: https://www.geeksforgeeks.org/python-os-getloadavg-method/  )
+#
 # Now we specify the compute pods host names as well as any non-standard 
 # ports....
 #
-# EXACTLY one of the following compute pods should be declared as the primary 
-# compute pod. If there are multiple or none, we choose the first we 
-# find... 
+# Any of the above pod defaults can be specified for a specific computePod 
+# and will override those defaults
 #
 # NOTE: The hosts names should be the name used by your (internal) network
 #
