@@ -28,18 +28,20 @@ certificateAuthority:
 # compute pod_defaults:
 #   hosts: # set in pod
 #     - host:ip
-#   publish: # set in pod
-#     - 0.0.0.0:8080:80
-#   volume: # set in container (all)
+#   ports: # set in pod (a *named* hash of port publish statements)
+#     web: 0.0.0.0:8080:80
+#   volumes: # set in container (all)
 #     - /a/host/directory/path:/a/container/directory/path:ro
-#   env: # set in container (all)
+#   envs: # set in container (all)
 #    aKey: aValue
-#   secret: # set in container (all)
+#   secrets: # set in container (all)
 #    - aSecretName # (see podman secret)
 #   maxLoadPerCPU: .5 # a value honoured by the computePods system
 # (see: https://stackoverflow.com/a/14840102
 #   or: https://stackoverflow.com/a/55423170
 #  and: https://www.geeksforgeeks.org/python-os-getloadavg-method/  )
+#   images: 
+#     - context
 #
 # Now we specify the compute pods host names as well as any non-standard 
 # ports....

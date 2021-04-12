@@ -22,11 +22,7 @@ from cpb.utils import *
 #   https://gist.github.com/thisismitch/bf52b0c1823da27ff353
 #
 
-def setDefault(eData, key, value) :
-  if key not in eData :
-    eData[key] = value
-
-def normalizeEntity(config, eData, eNum, workDirKey, caData) :
+def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   if workDirKey == 'certificateAuthorityDir' :
     if 'federationName' not in eData :
       logging.error("All certificate authorities MUST have a 'federationName' key")
@@ -65,7 +61,10 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData) :
   setDefault(eData, 'organization',   caData['organization'])
   setDefault(eData, 'federationName', caData['federationName'])
   setDefault(eData, 'serialNum',      caData['serialNum']+eNum)
-  
+
+  if podDefaults is not None :
+    mergePodDefaults(eData, podDefaults)
+
 def normalizeConfig(config) :
 
   if 'cpf' not in config :
@@ -102,15 +101,17 @@ def normalizeConfig(config) :
     caData['serialNum'] = int(time.time()) * 10000
 
   entityNum = 0
-  normalizeEntity(config, caData, entityNum, 'certificateAuthorityDir', caData)
+  normalizeEntity(config, caData, entityNum, 'certificateAuthorityDir', caData, None)
   entityNum += 1
 
+  podDefaults = config['cpf']['podDefaults']
+  
   for aPod in config['cpf']['computePods'] :
-    normalizeEntity(config, aPod, entityNum, 'podsDir', caData)
+    normalizeEntity(config, aPod, entityNum, 'podsDir', caData, podDefaults)
     entityNum += 1
 
   for aUser in config['cpf']['users'] :
-    normalizeEntity(config, aUser, entityNum, 'usersDir', caData)
+    normalizeEntity(config, aUser, entityNum, 'usersDir', caData, None)
     entityNum += 1
   
   if config['verbose'] :

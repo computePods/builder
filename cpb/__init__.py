@@ -34,12 +34,23 @@ defaultConfig = {
 }
 
 
-podDefaults = {
-  'natsMsgs'           : 4222,
-  'natsRouting'        : 6222,
-  'natsMonitor'        : 8222,
-  'syncThing'          : 22000, # both TCP and UDP
-  'syncThingDiscovery' : 21027 # UDP
+defaultPodDefaults = {
+  'hosts' : [],
+  'ports' : {
+    'natsMsgs'           : 4222,
+    #'natsRouting'        : 6222,
+    #'natsMonitor'        : 8222,
+    'syncThing'          : 22000, # both TCP and UDP
+    #'syncThingDiscovery' : 21027 # UDP
+  },
+  'volumes' : [],
+  'envs' : {},
+  'secrets' : [],
+  'images' : [
+    'natServer',
+    'syncThingServer'
+  ],
+  'maxLoadPerCPU' : 2
 }
 
 def loadConfig(configPath, verbose):
@@ -131,7 +142,12 @@ def loadConfig(configPath, verbose):
     if verbose is not None and verbose :
       print("INFO: could not load the cpf file: [{}]".format(config['cpfYaml']))
       print("\t" + "\n\t".join(str(e).split('\n')))
-
+  podDefaults = {}
+  if 'podDefaults' in config['cpf'] :
+    podDefaults = config['cpf']['podDefaults']
+  mergePodDefaults(podDefaults, defaultPodDefaults)
+  config['cpf']['podDefaults'] = podDefaults
+  
   # Now add in platform parameters
   thePlatform = {}
   thePlatform['system']    = platform.system()
