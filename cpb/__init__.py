@@ -7,16 +7,9 @@ import platform
 import sys
 import yaml
 
-#import cpb.build
+import cpb.build
 import cpb.config
 import cpb.create
-#import cpb.destroy
-#import cpb.enter
-#import cpb.remove
-#import cpb.run
-#import cpb.start
-#import cpb.stop
-#import cpb.lists
 from cpb.utils import *
 
 ########################################################################
@@ -26,6 +19,8 @@ defaultConfig = {
   'configYaml'              : "config.yaml",
   'imageYaml'               : "image.yaml",
   'cpfYaml'                 : "cpf.yaml",
+  'passwordsYaml'           : "passwords.yaml",
+  'passwordLength'          : 16,
   'cekitConfig'             : "cekit.ini",
   'certificateAuthorityDir' : "certAuthority",
   'podsDir'                 : "pods",
@@ -35,6 +30,7 @@ defaultConfig = {
 
 
 defaultPodDefaults = {
+  'commons' : os.path.join("$HOME", "commons"),
   'hosts' : [],
   'ports' : {
     'natsMsgs'           : 4222,
@@ -126,6 +122,33 @@ def loadConfig(configPath, verbose):
   if 'workdir' not in config['image']['run'] :
     config['image']['run']['workdir'] = "/root"
   """
+
+  # Now add in the cpb.yaml (if it exists)
+  config['passwords'] = {
+    'ca'    : {},
+    'pods'  : {},
+    'users' : {}
+  }
+  try:
+    passwordsFile = open(config['passwordsYaml'], 'r')
+    passwords = yaml.safe_load(passwordsFile)
+    passwordsFile.close()
+    if passwords is not None : 
+      if 'ca' not in passwords :
+        passwords['ca'] = {}
+      if 'pods' not in passwords :
+        passwords['pods'] = {}
+      if 'users' not in passwords :
+        passwords['users'] = {}
+      config['passwords'] = passwords
+  except IOError : 
+    if verbose is not None and verbose :
+      print("INFO: could not load the passwords file: [{}]".format(config['passwordsYaml']))
+  except Exception as e :
+    if verbose is not None and verbose :
+      print("INFO: could not load the passwords file: [{}]".format(config['passwordsYaml']))
+      print("\t" + "\n\t".join(str(e).split('\n')))
+
   
   # Now add in the cpb.yaml (if it exists)
   config['cpf'] = {}
@@ -196,7 +219,7 @@ def cli(ctx, config_file, verbose):
   ctx.ensure_object(dict)
   ctx.obj = loadConfig(config_file, verbose)
 
-#cli.add_command(cpb.build.build)
+cli.add_command(cpb.build.build)
 cli.add_command(cpb.config.config)
 cli.add_command(cpb.create.create)
 #cli.add_command(cpb.destroy.destroy)

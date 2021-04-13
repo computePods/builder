@@ -25,7 +25,12 @@ certificateAuthority:
 # We can start by specifying the standard defaults for any compute pod 
 # interface. 
 #
-# compute pod_defaults:
+# NOTE: any instance of "$HOME" in the "commons" path (below) will be
+#       replaced by the environment variable "HOME" from the machine/user
+#       which runs the create subcommand
+#
+podDefaults:
+#   commons: /a/path/to/the/commons
 #   hosts: # set in pod
 #     - host:ip
 #   ports: # set in pod (a *named* hash of port publish statements)
@@ -40,8 +45,8 @@ certificateAuthority:
 # (see: https://stackoverflow.com/a/14840102
 #   or: https://stackoverflow.com/a/55423170
 #  and: https://www.geeksforgeeks.org/python-os-getloadavg-method/  )
-#   images: 
-#     - context
+  images: 
+    - context
 #
 # Now we specify the compute pods host names as well as any non-standard 
 # ports....

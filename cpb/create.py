@@ -1,11 +1,13 @@
 # This python3 click subcommand creates a new pde commons area
 
 import click
-import glob
-import jinja2
 import logging
 import os
-import shutil
+import pyzipper
+import random
+import stat
+import string
+import sys
 import time
 import yaml
 
@@ -22,21 +24,28 @@ from cpb.utils import *
 #   https://gist.github.com/thisismitch/bf52b0c1823da27ff353
 #
 
+############################################################################
+# Configuration
+
 def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
+  passwords = config['passwords']['ca']
   if workDirKey == 'certificateAuthorityDir' :
     if 'federationName' not in eData :
       logging.error("All certificate authorities MUST have a 'federationName' key")
       sys.exit(-1)
+    passwords = config['passwords']['ca']
     eData['name'] = eData['federationName'] + '-ca'
   if workDirKey == 'podsDir' :
     if 'host' not in eData :
       logging.error("All pods MUST have a 'host' key")
       sys.exit(-1)
+    passwords = config['passwords']['pods']
     eData['name'] = eData['host'].split(',')[0]
   if workDirKey == 'usersDir' :
     if 'name' not in eData :
       logging.error("All users MUST have a 'name' key")
       sys.exit(-1)
+    passwords = config['passwords']['users']
 
   eData['name'] = eData['name'].replace("@", "-")
   eData['workDir'] = os.path.join(config[workDirKey], eData['name'].replace(" ",""))
@@ -53,6 +62,12 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   setDefault(eData, 'keyFile', eData['name'] + '-key.pem')
   sanitizeFilePath(eData, 'keyFile', eData['workDir'])
 
+  setDefault(eData, 'podFile', eData['name'] + '-pod.sh')
+  sanitizeFilePath(eData, 'podFile', eData['workDir'])
+  
+  setDefault(eData, 'zipFile', eData['name'] + '.zip')
+  sanitizeFilePath(eData, 'zipFile', eData['workDir'])
+
   setDefault(eData, 'keySize',        config['cpf']['keySize'])
   setDefault(eData, 'days',           caData['days'])
   setDefault(eData, 'country',        caData['country'])
@@ -62,8 +77,16 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   setDefault(eData, 'federationName', caData['federationName'])
   setDefault(eData, 'serialNum',      caData['serialNum']+eNum)
 
+  passwordCharacters = string.ascii_letters + string.digits
+  randomPassword =  "".join(random.choice(passwordCharacters) for x in range(config['passwordLength']))
+  setDefault(passwords, eData['name'], randomPassword)
+  eData['password'] = passwords[eData['name']]
+  
   if podDefaults is not None :
     mergePodDefaults(eData, podDefaults)
+    setDefault(eData, 'podName',  "{}-{}".format(eData['federationName'], eData['name']))
+    setDefault(eData, 'commonsPath', os.path.join(eData['commons'], 'cps', eData['podName']))
+    eData['volumes'].append("{}:/common".format(eData['commonsPath']))
 
 def normalizeConfig(config) :
 
@@ -117,6 +140,9 @@ def normalizeConfig(config) :
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
 
+############################################################################
+# Creation methods
+
 def createWorkDirFor(msg, eData) :
   if not os.path.isdir(eData['workDir']) :
     logging.info("creating the {} {} work directory".format(msg, eData['name']))
@@ -124,7 +150,7 @@ def createWorkDirFor(msg, eData) :
 
 def createKeyFor(msg, eData) :
   if os.path.isfile(eData['keyFile']) :
-    logging.info("{} key file exists -- not recreating".format(msg))
+    logging.info("{} {} key file exists -- not recreating".format(msg, eData['name']))
   else :
     cmd = "openssl genpkey -algorithm RSA -out {} -pkeyopt rsa_keygen_bits:{}".format(
       eData['keyFile'], eData['keySize'])
@@ -285,7 +311,76 @@ def createCertFor(msg, certData, caData) :
     click.echo("----cert-file-generation----")
     os.system(cmd)
     click.echo("----cert-file-generation----")
-  click.echo("")
+    click.echo("")
+
+def createPod(podData) :
+  logging.info("pod {} creation script".format(podData['name']))
+
+  script = [
+    "#!/bin/sh",
+    "",
+    "# Port mappings for this pod",
+    "#"
+  ]
+  for aPortName, aPortDef in podData['ports'].items() :
+    script.append("# Port {} used for {}".format(aPortDef, aPortName))
+  script.append("")
+  script.append("# create the commons directory for this pod")
+  script.append("#")
+  script.append("mkdir -p {}".format(podData['commonsPath']))
+  script.append("")
+  script.append("# Create the pod")
+  script.append("#")
+  script.append("podman pod create \\",)
+  script.append("  --name={} \\".format(podData['podName']))
+  script.append("  --lable=io.github.computepods.type=pod \\")
+  for aHost in podData['hosts'] :
+    script.append("  --add-host={} \\".format(aHost))
+  for aPortName, aPortDef in podData['ports'].items() :
+    script.append("  --publish={} \\".format(aPortDef))
+  script.append("")
+  for anImage in podData['images'] :
+    script.append("# Create the {} worker container".format(anImage))
+    script.append("#")
+    script.append("podman container create \\")
+    script.append("  --pod={} \\".format(podData['podName']))
+    script.append("  --name={}-{} \\".format(podData['podName'], anImage))
+    script.append("  --lable=io.github.computepods.type=worker \\")
+    for aHost in podData['hosts'] :
+      script.append("  --add-host={} \\".format(aHost))
+    for envKey, envValue in podData['envs'].items() :
+      script.append("  --env={}={} \\".format(envKey, envValue))
+    for aPortName, aPortDef in podData['ports'].items() :
+      script.append("  --publish={} \\".format(aPortDef))
+    for aSecret in podData['secrets'] :
+      script.append("  --secret={} \\".format(secret))
+    for aVolumeDef in podData['volumes'] :
+      script.append("  --volume={} \\".format(aVolumeDef))
+    script.append("")
+  script.append("")
+  podFile = open(podData['podFile'], "w")
+  podFile.write("\n".join(script))
+  podFile.close()
+  os.chmod(podData['podFile'], 
+    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+    stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
+    stat.S_IROTH | stat.S_IXOTH)
+
+  # Then zip up the directory...
+  with pyzipper.AESZipFile(podData['zipFile'], 'w', compression=pyzipper.ZIP_LZMA) as zf:
+    def saveFile(fileName) :
+      zf.write(fileName, os.path.join('podConfig', os.path.basename(fileName)))
+    zf.setpassword(bytes(podData['password'], 'utf-8'))
+    zf.setencryption(pyzipper.WZ_AES, nbits=128)
+    #zf.write(podData['sslConfigFile'], os.path.join('podConfig', os.path.basename(podData['sslConfigFile'])))
+    saveFile(podData['sslConfigFile'])
+    saveFile(podData['csrFile'])
+    saveFile(podData['certFile'])
+    saveFile(podData['keyFile'])
+    saveFile(podData['podFile'])
+
+############################################################################
+# Do the work...
 
 @click.command("create")
 @click.pass_context
@@ -297,19 +392,30 @@ def create(ctx):
   config = ctx.obj
   normalizeConfig(config)
   
-  click.echo("(re)Creating the {} federation".format(config['cpf']['federationName']))
+  click.echo("\n(re)Creating the {} federation".format(config['cpf']['federationName']))
 
+  click.echo("\nWorking on certificate authority")
   caData = config['cpf']['certificateAuthority']
   createWorkDirFor("certificate authority", caData)
   createKeyFor("certificate authority", caData)
   createCertFor("certificate authority", caData, None)
   
   for aPod in config['cpf']['computePods'] :
+    click.echo("\nWorking on {} pod".format(aPod['name']))
     createWorkDirFor("pod", aPod)
     createKeyFor("pod", aPod)
     createCertFor("pod", aPod, caData)
-
+    createPod(aPod)
+    
   for aUser in config['cpf']['users'] :
+    click.echo("\nWorking on {} user".format(aUser['name']))
     createWorkDirFor("user", aUser)
     createKeyFor("user", aUser)
     createCertFor("user", aUser, caData)
+
+  click.echo("")
+
+  passwordsFile = open(config['passwordsYaml'], 'w')
+  passwordsFile.write(yaml.dump(config['passwords']))
+  passwordsFile.close()
+  os.chmod(config['passwordsYaml'], stat.S_IRUSR | stat.S_IWUSR)

@@ -37,6 +37,13 @@ def mergeDictDefaults(eData, key, value) :
   eData[key] = newDict
 
 def mergePodDefaults(eData, podDefaults) :
+  setDefault(        eData, 'commons',       os.path.join("$HOME", "commons"))
+  if 0 <= eData['commons'].find("$HOME") :
+    if 'HOME' in os.environ :
+      eData['commons'] = eData['commons'].replace("$HOME", os.environ['HOME'])
+    else: 
+      eData['commons'] = eData['commons'].replace("$HOME", "")
+      
   appendListDefaults(eData, 'hosts',         podDefaults)
   mergeDictDefaults( eData, 'ports',         podDefaults)
   appendListDefaults(eData, 'volumes',       podDefaults)
