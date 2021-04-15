@@ -85,8 +85,9 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   if podDefaults is not None :
     mergePodDefaults(eData, podDefaults)
     setDefault(eData, 'podName',  "{}-{}".format(eData['federationName'], eData['name']))
-    setDefault(eData, 'commonsPath', os.path.join(eData['commons'], 'cps', eData['podName']))
-    eData['volumes'].append("{}:/common".format(eData['commonsPath']))
+    setDefault(eData, 'commonsDir', os.path.join(eData['commonsBaseDir'], 'cps', eData['podName']))
+    sanitizeFilePath(eData, 'commonsDir', None)
+    eData['volumes'].append("{}:/commons".format(eData['commonsDir']))
 
 def normalizeConfig(config) :
 
@@ -327,7 +328,7 @@ def createPod(podData) :
   script.append("")
   script.append("# create the commons directory for this pod")
   script.append("#")
-  script.append("mkdir -p {}".format(podData['commonsPath']))
+  script.append("mkdir -p {}".format(podData['commonsDir']))
   script.append("")
   script.append("# Create the pod")
   script.append("#")

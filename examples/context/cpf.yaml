@@ -70,3 +70,22 @@ computePods:
 # Now we provide a list of the individual user's names or email addresses.
 users:
   - name: stephen@perceptisys.co.uk
+
+# Now we specify how to build what will be run on these machines
+#
+# buildDir: /a/path
+#
+# cekitRepositories:
+#   - /a/path
+#
+cekitImageDescriptions:
+  defaults:
+    repositories:
+      - ../cekitModules
+  context:
+    basedOn: debian:stable-slim
+    packagesManager: apt-get
+    description: A ConTeXt typesetting worker
+    version: 1.0
+    modules:
+      - context

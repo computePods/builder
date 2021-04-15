@@ -1,0 +1,19 @@
+# This CEKit module describes how to install the NATS server
+
+# This module:
+# - assumes an Alpine based container,
+
+# see: https://github.com/nats-io/nats-docker/tree/master/2.2.1
+
+schema_version: 1
+
+name: natServer
+version: 1.0
+description: Installs the NATS messaging service
+
+execute:
+  - script: installNats.sh
+
+run:
+  cmd:
+    - nats-server

@@ -1,0 +1,27 @@
+# This CEKit module describes how to install the base debian system into a pde
+
+# This module:
+# - assumes a Debian based container,
+
+# see: https://github.com/nats-io/nats-docker/tree/master/2.2.1
+
+schema_version: 1
+
+name: nats
+version: 1.0
+description: Installs the NATS messaging service
+
+execute:
+  - script: installNats.sh
+
+packages:
+  install:
+    - make
+    - git
+    - tig
+    - wget
+    - curl
+    - ca-certificates
+    - less
+    - nano
+    - tree

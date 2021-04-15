@@ -22,31 +22,31 @@ defaultConfig = {
   'passwordsYaml'           : "passwords.yaml",
   'passwordLength'          : 16,
   'cekitConfig'             : "cekit.ini",
+  'buildBaseDir'            : os.path.join("~", ".local", "computePods"),
   'certificateAuthorityDir' : "certAuthority",
   'podsDir'                 : "pods",
   'usersDir'                : "users",
   'verbose'                 : False
 }
 
-
 defaultPodDefaults = {
-  'commons' : os.path.join("$HOME", "commons"),
-  'hosts' : [],
-  'ports' : {
-    'natsMsgs'           : 4222,
+  'commonsBaseDir'        : os.path.join("~", "commons"),
+  'hosts'                 : [],
+  'ports'                 : {
+    'natsMsgs'            : 4222,
     #'natsRouting'        : 6222,
     #'natsMonitor'        : 8222,
-    'syncThing'          : 22000, # both TCP and UDP
+    'syncThing'           : 22000, # both TCP and UDP
     #'syncThingDiscovery' : 21027 # UDP
   },
-  'volumes' : [],
-  'envs' : {},
-  'secrets' : [],
-  'images' : [
+  'volumes'               : [],
+  'envs'                  : {},
+  'secrets'               : [],
+  'images'                : [
     'natServer',
     'syncThingServer'
   ],
-  'maxLoadPerCPU' : 2
+  'maxLoadPerCPU'         : 2
 }
 
 def loadConfig(configPath, verbose):
@@ -170,7 +170,7 @@ def loadConfig(configPath, verbose):
     podDefaults = config['cpf']['podDefaults']
   mergePodDefaults(podDefaults, defaultPodDefaults)
   config['cpf']['podDefaults'] = podDefaults
-  
+
   # Now add in platform parameters
   thePlatform = {}
   thePlatform['system']    = platform.system()

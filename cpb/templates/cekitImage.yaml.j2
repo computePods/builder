@@ -1,0 +1,16 @@
+# This CEKit description builds a computePods image for {{ imageName }}
+
+name: "{{ imageName | lower}}"
+version: "{{ version }}"
+description: "{{ description }}"
+
+from: "{{ basedOn }}"
+
+packages:
+  manager: "{{ packagesManager }}"
+
+modules:
+  repositories:{% for aRepo in repositories %}
+    - path: {{ aRepo }}{% endfor %}
+  install:{% for aModule in modules %}
+    - name: {{ aModule }}{% endfor %}
