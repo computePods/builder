@@ -95,34 +95,6 @@ def loadConfig(configPath, verbose):
   config['curDir'] = os.path.abspath(os.getcwd())
   config['homeDir'] = os.path.expanduser("~")
 
-  """
-  # Now add in the image.yaml (if it exists)
-  config['image'] = {}
-  try:
-    imageFile = open(config['imageYaml'], 'r')
-    image = yaml.safe_load(imageFile)
-    imageFile.close()
-    if image is not None : 
-      config['image'] = image
-  except IOError : 
-    if verbose is not None and verbose :
-      print("INFO: could not load the image file: [{}]".format(config['imageYaml']))
-  except Exception as e :
-    if verbose is not None and verbose :
-      print("INFO: could not load the image file: [{}]".format(config['imageYaml']))
-      print("    > " + "\n    > ".join(str(e).split('\n')))
-      print("  Did you remember to wrap all YAML values\n  with Jinja2 variables in quotes?")
-
-  if 'run' not in config['image'] :
-    config['image']['run'] = {}
-    
-  if 'user' not in config['image']['run'] :
-    config['image']['run']['user'] = "root"
-
-  if 'workdir' not in config['image']['run'] :
-    config['image']['run']['workdir'] = "/root"
-  """
-
   # Now add in the cpb.yaml (if it exists)
   config['passwords'] = {
     'ca'    : {},

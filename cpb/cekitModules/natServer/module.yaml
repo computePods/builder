@@ -10,10 +10,14 @@ schema_version: 1
 name: natServer
 version: 1.0
 description: Installs the NATS messaging service
+from: alpine
 
 execute:
   - script: installNats.sh
 
+packages:
+  manager: apk
+  
 run:
   cmd:
     - nats-server

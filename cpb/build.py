@@ -45,6 +45,33 @@ defaultCekitImageDescriptions = {
 ############################################################################
 # Configuration
 
+def loadCekitModules(config) :
+  config['modules'] = {}
+  modules = config['modules']
+  
+  print("=======================================================")
+  for aRepo in config['repositories'] :
+    print("---------------")
+    for aModule in os.listdir(aRepo) :
+      print(aModule)
+      modules[aModule] = {}
+      
+      cekitModulePath = os.path.join(aRepo, aModule, 'module.yaml')
+      if os.path.isfile(cekitModulePath) :
+        try: 
+          with open(cekitModulePath, 'r') as moduleFile :
+            modules[aModule] = yaml.safe_load(moduleFile)
+        except Exception as e :
+          logging.info("Could not load the {} YAML file.".format(cekitModulePath))
+          print("  > " + "\n  >".join(str(e).split("\n")))
+          
+      cpfModulePath = os.path.join(aRepo, aModule, 'cpf.yaml')
+      if os.path.isfile(cpfModulePath) :
+        with open(cpfModulePath, 'r') as moduleFile :
+          modules[aModule].update(yaml.safe_load(moduleFile))
+      
+  print("=======================================================")
+
 def normalizeConfig(config) :
 
   if 'cpf' not in config :
@@ -90,6 +117,27 @@ def normalizeConfig(config) :
   imageDescs['defaults']['repositories'].insert(0, config['buildCekitModulesDir'])
   imageDefaults = imageDescs['defaults']
 
+  copyCekitModulesFile(config, ['cpChef-apk',      'Readme.md'])
+  copyCekitModulesFile(config, ['cpChef-apk',      'module.yaml'])
+  copyCekitModulesFile(config, ['cpChef-apk',      'cpf.yaml'])
+  copyCekitModulesFile(config, ['cpChef-apk',      'installCPChef.sh'])
+  copyCekitModulesFile(config, ['cpChef-apt-get',  'Readme.md'])
+  copyCekitModulesFile(config, ['cpChef-apt-get',  'module.yaml'])
+  copyCekitModulesFile(config, ['cpChef-apt-get',  'cpf.yaml'])
+  copyCekitModulesFile(config, ['cpChef-apt-get',  'installCPChef.sh'])
+  copyCekitModulesFile(config, ['natServer',       'Readme.md'])
+  copyCekitModulesFile(config, ['natServer',       'module.yaml'])
+  copyCekitModulesFile(config, ['natServer',       'installNats.sh'])
+  copyCekitModulesFile(config, ['syncThingServer', 'Readme.md'])
+  copyCekitModulesFile(config, ['syncThingServer', 'module.yaml'])
+  copyCekitModulesFile(config, ['syncThingServer', 'cpf.yaml'])
+  copyCekitModulesFile(config, ['syncThingServer', 'installSyncThing.sh'])
+  
+  config['repositories'] = []
+  for aRepo in imageDescs['defaults']['repositories'] :
+    config['repositories'].append(aRepo)
+  loadCekitModules(config)
+  
   for anImageName, anImageDesc in imageDescs.items() :
     if anImageName != 'defaults' :
       mergeCekitImageDescriptions(anImageDesc, imageDefaults)
@@ -134,18 +182,6 @@ def build(ctx):
   config = ctx.obj
   normalizeConfig(config)
 
-  copyCekitModulesFile(config, ['cpChef-apk',      'Readme.md'])
-  copyCekitModulesFile(config, ['cpChef-apk',      'module.yaml'])
-  copyCekitModulesFile(config, ['cpChef-apk',      'installCPChef.sh'])
-  copyCekitModulesFile(config, ['cpChef-apt-get',  'Readme.md'])
-  copyCekitModulesFile(config, ['cpChef-apt-get',  'module.yaml'])
-  copyCekitModulesFile(config, ['cpChef-apt-get',  'installCPChef.sh'])
-  copyCekitModulesFile(config, ['natServer',       'Readme.md'])
-  copyCekitModulesFile(config, ['natServer',       'module.yaml'])
-  copyCekitModulesFile(config, ['natServer',       'installNats.sh'])
-  copyCekitModulesFile(config, ['syncThingServer', 'Readme.md'])
-  copyCekitModulesFile(config, ['syncThingServer', 'module.yaml'])
-  copyCekitModulesFile(config, ['syncThingServer', 'installSyncThing.sh'])
 
   imageDescs = config['cpf']['cekitImageDescriptions']
   for anImageKey in config['imagesToBuild'] :
@@ -173,7 +209,7 @@ def build(ctx):
       click.echo("Using CEKit to build the {} image".format(anImageKey))
       click.echo("in the {} directory".format(imageDir))
       click.echo("")
-      os.system("cekit build podman")
+      os.system("echo cekit build podman")
       click.echo("----------------------------------------------------------")
     except Exception as err:
       logging.error("Could not build {} image using CEKit".format(anImageKey))

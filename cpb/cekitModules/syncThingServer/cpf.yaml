@@ -1,0 +1,12 @@
+# This cpf YAML file describes how to build the syncThing CEKit module.
+
+# The important thing about this description is that the Python modules 
+# require the two stage build. In this YAML file we describe the build 
+# stage modules which pair with this run stage module. 
+
+buildModule: syncThingBuild
+
+basedOn: alpine
+
+packagesManager: apk
+  

@@ -9,11 +9,13 @@ schema_version: 1
 name: cpChef-apt-get
 version: 1.0
 description: Installs the computePods Chef tool (debian version)
+from: debian:stable-slim
 
 execute:
   - script: installCPChef.sh
 
 packages:
+  manager: apt-get
   install:
     - git
     - python3
