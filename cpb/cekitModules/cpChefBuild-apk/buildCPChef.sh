@@ -1,34 +1,77 @@
 #!/bin/sh
 
-# This shell script installs the computePods Chef tool
+# This shell script builds the computePods Chef tool
+#
+# In this script we ONLY worry about the Lua modules that have C 
+# components which need compilation. 
+#
 
 echo "----------------------------------------------------------------------"
 echo $0
 echo "----------------------------------------------------------------------"
 echo ""
 
+################################################
+# Versions
+#
+luaVersion=5.4.2
+luaCJsonVersion=e8972ac
+
+numCores=$(nproc)
+
+################################################
+# Build lua
+# See; https://www.lua.org/download.html
+#
 cd
+wget http://www.lua.org/ftp/lua-$luaVersion.tar.gz
+mkdir lua
+tar xvf lua-$luaVersion.tar.gz --directory=lua --strip-components=1
+cd lua
+make -j $numCores
+make install
 
-# We need to install pip using the now v3.4 standard ensurepip
+# Install our version of the pgk-config file for Lua
+# This is required by both luv and lua-openssl
 #
-python3 -m ensurepip
+mkdir -p /usr/local/lib/pkgconfig
+cp /tmp/artifacts/lua.pc /usr/local/lib/pkgconfig
 
-# We need to upgrade to the most recent version of pip to allow the 
-# cryptographic package to be installed without requiring the Rust 
-# compiler. 
+################################################
+# Build lua-cjson
+# See; https://github.com/mpx/lua-cjson
+cd
+git clone https://github.com/mpx/lua-cjson.git
+cd lua-cjson
+git checkout $luaCJsonVersion
+make LUA_VERSION=5.4 -j $numCores
+make LUA_VERSION=5.4 install
+make LUA_VERSION=5.4 install-extra
+
+################################################
+# Build luv
+# See; https://github.com/luvit/luv
 #
-python3 -m pip install --upgrade pip
+cd
+git clone https://github.com/luvit/luv.git --recursive
+cd luv
+export LUA_BUILD_TYPE=System
+export WITH_LUA_ENGINE=Lua
+make -j $numCores
+make install
 
-# We need the setuptools python package to manage our computePodChef
+################################################
+# Build lua-openssl
+# See; https://github.com/zhaozg/lua-openssl
 #
-python3 -m pip install --upgrade setuptools
+cd
+git clone https://github.com/zhaozg/lua-openssl.git --recursive
+cd lua-openssl
+make -j $numCores
+make install
 
-# We need the wheel python package to manager the dependencies
+################################################
+# make a tar file of the lua libraries 
 #
-python3 -m pip install --upgrade wheel 
-
-python3 -m pip list
-
-git clone https://github.com/computePods/computePodChef.git
-
-python3 -m pip install --editable /root/computePodChef
+cd
+tar cvf luaLibs.tar /usr/local/include/lua* /usr/local/bin /usr/local/lib /usr/local/share

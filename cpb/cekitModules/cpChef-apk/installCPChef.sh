@@ -7,28 +7,40 @@ echo $0
 echo "----------------------------------------------------------------------"
 echo ""
 
+################################################
+# Install the binary lua modules from the build phase
+#
+cd 
+tar xvf /tmp/artifacts/luaLibs.tar --directory /
+
+################################################
+# install lua uuid
+#
 cd
+mkdir -p luaUUID
+tar xvf /tmp/artifacts/luaUUID.tar.gz --directory luaUUID --strip-components=1
+cp luaUUID/src/uuid.lua /usr/local/share/lua/5.4
 
-# We need to install pip using the now v3.4 standard ensurepip
+################################################
+# install lua NATS
 #
-python3 -m ensurepip
+cd
+mkdir -p luaNATS
+tar xvf /tmp/artifacts/luaNATS.tar.gz --directory luaNATS --strip-components=1
+cp luaNATS/src/nats.lua /usr/local/share/lua/5.4
 
-# We need to upgrade to the most recent version of pip to allow the 
-# cryptographic package to be installed without requiring the Rust 
-# compiler. 
+################################################
+# install lua yaml
 #
-python3 -m pip install --upgrade pip
+cd
+mkdir -p luaYAML
+tar xvf /tmp/artifacts/luaYAML.tar.gz --directory luaYAML --strip-components=1
+cp luaYAML/yaml.lua /usr/local/share/lua/5.4
 
-# We need the setuptools python package to manage our computePodChef
+################################################
+# install lua pprint
 #
-python3 -m pip install --upgrade setuptools
-
-# We need the wheel python package to manager the dependencies
-#
-python3 -m pip install --upgrade wheel 
-
-python3 -m pip list
-
-git clone https://github.com/computePods/computePodChef.git
-
-python3 -m pip install --editable /root/computePodChef
+cd
+mkdir -p luaPPrint
+tar xvf /tmp/artifacts/luaPPrint.tar.gz --directory luaPPrint --strip-components=1
+cp luaPPrint/pprint.lua /usr/local/share/lua/5.4

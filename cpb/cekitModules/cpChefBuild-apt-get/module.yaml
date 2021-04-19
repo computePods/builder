@@ -18,5 +18,15 @@ packages:
   manager: apt-get
   install:
     - git
-    - python3
-    - python3-pip
+    - gcc
+    - make
+    - cmake
+    - libc6-dev
+    - pkg-config
+    - libssl-dev
+    - wget
+    - ca-certificates
+
+artifacts:
+  - name: lua.pc
+    path: lua.pc
