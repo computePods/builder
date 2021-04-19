@@ -28,7 +28,7 @@ defaultCekitImageDescriptions = {
     'basedOn'         : 'alpine',
     'description'     : 'The NATS messaging back-plane',
     'modules'         : [ 
-      'nats'
+      'natServer'
     ],
     'packagesManager' : 'apk',
   },
@@ -36,11 +36,29 @@ defaultCekitImageDescriptions = {
     'basedOn'         : 'alpine',
     'description'     : 'The SyncThing file syncronization back-plane',
     'modules'         : [ 
-      'syncThing'
+      'syncThingServer'
     ],
     'packagesManager' : 'apk',
   }
 }
+
+############################################################################
+# some helper methods
+
+def copyCekitModulesFiles(config) :
+  for aCekitModule in importlib.resources.contents("cpb.cekitModules") :
+    if aCekitModule == '__init__.py' : continue
+    if aCekitModule == '__pycache__' : continue
+    cekitModuleDir = os.path.join(config['buildCekitModulesDir'], aCekitModule)
+    os.makedirs(cekitModuleDir, exist_ok=True)
+    for aFile in importlib.resources.contents("cpb.cekitModules.{}".format(aCekitModule)) :
+      if aFile == '__init__.py' : continue
+      if aFile == '__pycache__' : continue
+      logging.info("copying cekit module file: {}::{}".format(aCekitModule, aFile))
+      fileContents = importlib.resources.read_text(
+        "cpb.cekitModules.{}".format(aCekitModule), aFile )
+      with open(os.path.join(cekitModuleDir, aFile), 'w') as outFile :
+        outFile.write(fileContents)
 
 ############################################################################
 # Configuration
@@ -49,29 +67,20 @@ def loadCekitModules(config) :
   config['modules'] = {}
   modules = config['modules']
   
-  print("=======================================================")
   for aRepo in config['repositories'] :
-    print("---------------")
     for aModule in os.listdir(aRepo) :
-      print(aModule)
       modules[aModule] = {}
       
       cekitModulePath = os.path.join(aRepo, aModule, 'module.yaml')
       if os.path.isfile(cekitModulePath) :
         try: 
           with open(cekitModulePath, 'r') as moduleFile :
+            logging.info("Loading {}::module.yaml\n      from {}".format(aModule, aRepo))
             modules[aModule] = yaml.safe_load(moduleFile)
         except Exception as e :
           logging.info("Could not load the {} YAML file.".format(cekitModulePath))
           print("  > " + "\n  >".join(str(e).split("\n")))
           
-      cpfModulePath = os.path.join(aRepo, aModule, 'cpf.yaml')
-      if os.path.isfile(cpfModulePath) :
-        with open(cpfModulePath, 'r') as moduleFile :
-          modules[aModule].update(yaml.safe_load(moduleFile))
-      
-  print("=======================================================")
-
 def normalizeConfig(config) :
 
   if 'cpf' not in config :
@@ -87,6 +96,7 @@ def normalizeConfig(config) :
   setDefault(      config, 'buildBaseDir', os.path.join("~", ".local", "computePods"))
   sanitizeFilePath(config, 'buildBaseDir', None)
   setDefault(      config, 'buildDir',     os.path.join(config['buildBaseDir'], config['federationName']) )  
+  setDefault(      config, 'cekitCmd',     os.path.join(config['buildDir'], 'cpb-cekit'))
 
   if 'computePods' not in config['cpf'] :
     logging.error("A compute pod federation name MUST have some computePods defined!")
@@ -117,33 +127,24 @@ def normalizeConfig(config) :
   imageDescs['defaults']['repositories'].insert(0, config['buildCekitModulesDir'])
   imageDefaults = imageDescs['defaults']
 
-  copyCekitModulesFile(config, ['cpChef-apk',      'Readme.md'])
-  copyCekitModulesFile(config, ['cpChef-apk',      'module.yaml'])
-  copyCekitModulesFile(config, ['cpChef-apk',      'cpf.yaml'])
-  copyCekitModulesFile(config, ['cpChef-apk',      'installCPChef.sh'])
-  copyCekitModulesFile(config, ['cpChef-apt-get',  'Readme.md'])
-  copyCekitModulesFile(config, ['cpChef-apt-get',  'module.yaml'])
-  copyCekitModulesFile(config, ['cpChef-apt-get',  'cpf.yaml'])
-  copyCekitModulesFile(config, ['cpChef-apt-get',  'installCPChef.sh'])
-  copyCekitModulesFile(config, ['natServer',       'Readme.md'])
-  copyCekitModulesFile(config, ['natServer',       'module.yaml'])
-  copyCekitModulesFile(config, ['natServer',       'installNats.sh'])
-  copyCekitModulesFile(config, ['syncThingServer', 'Readme.md'])
-  copyCekitModulesFile(config, ['syncThingServer', 'module.yaml'])
-  copyCekitModulesFile(config, ['syncThingServer', 'cpf.yaml'])
-  copyCekitModulesFile(config, ['syncThingServer', 'installSyncThing.sh'])
+  copyCekitModulesFiles(config)
   
   config['repositories'] = []
   for aRepo in imageDescs['defaults']['repositories'] :
     config['repositories'].append(aRepo)
   loadCekitModules(config)
-  
+
+  # Process the user's image definitions
+  #
   for anImageName, anImageDesc in imageDescs.items() :
     if anImageName != 'defaults' :
       mergeCekitImageDescriptions(anImageDesc, imageDefaults)
       setDefault(anImageDesc, 'name',      anImageName)
       setDefault(anImageDesc, 'imageName', "{}-{}".format(config['federationName'], anImageName))
-      anImageDesc['modules'].insert(len(defaultImageDesc['modules']), 'cpChef')
+      anImageDesc['modules'].insert(len(defaultImageDesc['modules']), 'cpChef-{}'.format(anImageDesc['packagesManager']))
+  #
+  # Add in the default image definitions (defined above)
+  #
   for anImageName, anImageDesc in defaultCekitImageDescriptions.items() :
     if anImageName != 'defaults' :
       mergeCekitImageDescriptions(anImageDesc, imageDefaults)
@@ -152,22 +153,26 @@ def normalizeConfig(config) :
         mergeCekitImageDescriptions(imageDescs[anImageName], anImageDesc)
       setDefault(imageDescs[anImageName], 'name',      anImageName)
       setDefault(imageDescs[anImageName], 'imageName', "{}-{}".format(config['federationName'], anImageName))
+  #
+  # Now add any required build modules
+  #
+  modules = config['modules']
+  for anImageName, anImageDesc in imageDescs.items() :
+    if anImageName != 'defaults' :
+      buildModules = []
 
+      for aModule in anImageDesc['modules'] :
+        if aModule not in modules :
+          logging.error("No {} module found while defining the {} image".format(aModule, anImageName))
+          sys.exit(-1)
+        
+        if 'buildModule' in modules[aModule] :
+          buildModules.append(modules[aModule]['buildModule'])
+      if buildModules :
+        anImageDesc['buildModules'] = buildModules
+      
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
-
-############################################################################
-# some helper methods
-
-def copyCekitModulesFile(config, pathList) :
-  cekitModuleDir = os.path.join(config['buildCekitModulesDir'], pathList[0])
-  os.makedirs(cekitModuleDir, exist_ok=True)
-  fileContents = importlib.resources.read_text(
-    "cpb.cekitModules.{}".format(pathList[0]),
-    pathList[1]
-  )
-  with open(os.path.join(cekitModuleDir, pathList[1]), 'w') as outFile :
-    outFile.write(fileContents)
 
 ############################################################################
 # Do the work...
@@ -182,6 +187,14 @@ def build(ctx):
   config = ctx.obj
   normalizeConfig(config)
 
+  cekitMonkeyPatch = importlib.resources.read_text(
+    "cpb.resources", "cekitWithExtendedModule" )
+  with open(config['cekitCmd'], 'w') as outFile :
+    outFile.write(cekitMonkeyPatch)
+  os.chmod(config['cekitCmd'], 
+    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+    stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
+    stat.S_IROTH | stat.S_IXOTH)
 
   imageDescs = config['cpf']['cekitImageDescriptions']
   for anImageKey in config['imagesToBuild'] :
@@ -193,7 +206,7 @@ def build(ctx):
     imageDir = os.path.join(config['buildDir'], anImageKey)
     fileName = 'image.yaml'
     os.makedirs(imageDir, exist_ok=True)
-    cekitImageJ2 = importlib.resources.read_text('cpb.templates', 'cekitImage.yaml.j2')
+    cekitImageJ2 = importlib.resources.read_text('cpb.resources', 'cekitImage.yaml.j2')
     try: 
       template = jinja2.Template(cekitImageJ2)
       fileContents = template.render(imageDescs[anImageKey]) 
@@ -214,14 +227,3 @@ def build(ctx):
     except Exception as err:
       logging.error("Could not build {} image using CEKit".format(anImageKey))
       logging.error(err)
-
-  """
-  for anObj in importlib.resources.contents('cpb') :
-    click.echo(anObj)
-  aFileStr = importlib.resources.read_text('cpb.templates', 'sillyTemplate.j2')
-  click.echo("----------------------")
-  click.echo(aFileStr)
-  click.echo("----------------------")
-  with importlib.resources.path('cpb.templates', 'sillyTemplate.j2') as aPath :
-    click.echo(aPath)
-  """

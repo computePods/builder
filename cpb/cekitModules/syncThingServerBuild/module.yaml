@@ -1,4 +1,4 @@
-# This CEKit module describes how to install the base debian system into a pde
+# This CEKit module describes how to build the syncThing computePud container
 
 # This module:
 # - assumes a Debian based container,
@@ -7,13 +7,13 @@
 
 schema_version: 1
 
-name: syncThingServer
+name: syncThingServerBuild
 version: 1.0
-description: Installs the NATS messaging service
+description: Builds the SyncThing file synchronization service
 from: alpine
 
 execute:
-  - script: installSyncThing.sh
+  - script: buildSyncThing.sh
 
 packages:
   manager: apk
@@ -27,8 +27,3 @@ packages:
     - less
     - nano
     - tree
-
-# Tell cpb that we have a two stage build which requires the
-# syncThingBuild module
-#
-buildModule: syncThingServerBuild

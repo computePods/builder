@@ -1,0 +1,22 @@
+# This CEKit module describes how to build the computePods Chef tool on 
+# debian based distribution (any which uses apt-get to install packages)
+
+# This module:
+# - assumes a Debian (apt-get) based container,
+
+schema_version: 1
+
+name: cpChefBuild-apt-get
+version: 1.0
+description: Builds the computePods Chef tool (debian version)
+from: debian:stable-slim
+
+execute:
+  - script: buildCPChef.sh
+
+packages:
+  manager: apt-get
+  install:
+    - git
+    - python3
+    - python3-pip

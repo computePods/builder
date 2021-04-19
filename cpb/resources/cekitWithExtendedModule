@@ -1,0 +1,25 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+# This is a private monkey-patch of the standard cekit (Python) command.
+
+# This is part of the computePods builder interface to allow a slight 
+# modification of the cekit Module schema. 
+
+# We really *should* suggest that cekit centralizes the schema registry 
+# and then allows *adding* schema fields.... but until then we 
+# monkey-patch! ;-( 
+
+import re
+import sys
+from cekit.cli import cli
+
+# The monkey-patch which extends the cekit.descriptor.module schema to 
+# allow a 'buildModule' entry 
+#
+from cekit.descriptor.module import overrides_schema
+overrides_schema['map']['buildModule'] = { 'type': 'any' }
+
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(cli())

@@ -1,4 +1,4 @@
-# This CEKit module describes how to install the computePods Chef tool on 
+# This CEKit module describes how to build the computePods Chef tool on 
 # alpine based distribution (any which uses apk to install packages)
 
 # This module:
@@ -6,13 +6,13 @@
 
 schema_version: 1
 
-name: cpChef-apk
+name: cpChefBuild-apk
 version: 1.0
-description: Installs the computePods Chef tool (alpine version)
+description: Builds the computePods Chef tool (alpine version)
 from: alpine
 
 execute:
-  - script: installCPChef.sh
+  - script: buildCPChef.sh
 
 packages:
   manager: apk
@@ -27,7 +27,3 @@ packages:
     - openssl-dev
     - python3-dev
 
-# Tell cpb that we have a two stage build which requires the
-# cpChefBuild-apk module
-#
-buildModule: cpChefBuild-apk

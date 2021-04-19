@@ -1,0 +1,37 @@
+# This CEKit description builds a computePods image for {{ imageName }}
+
+{% if buildModules is defined %}
+# Build stage
+#
+- name: "builder"
+  version: "{{ version }}"
+  description: "Builds the {{ description }}"
+
+  from: "{{ basedOn }}"
+
+  packages:
+    manager: "{{ packagesManager }}"
+
+  modules:
+    repositories:{% for aRepo in repositories %}
+      - path: {{ aRepo }}{% endfor %}
+    install:{% for aModule in buildModules %}
+      - name: {{ aModule }}{% endfor %}
+{% endif %}
+
+# Main (run) stage
+#
+- name: "{{ imageName | lower}}"
+  version: "{{ version }}"
+  description: "{{ description }}"
+
+  from: "{{ basedOn }}"
+
+  packages:
+    manager: "{{ packagesManager }}"
+
+  modules:
+    repositories:{% for aRepo in repositories %}
+      - path: {{ aRepo }}{% endfor %}
+    install:{% for aModule in modules %}
+      - name: {{ aModule }}{% endfor %}
