@@ -1,50 +1,23 @@
 #!/bin/sh
 
-# This shell script builds the base debian system
+# This shell script builds the syncThingServer
 
 echo "----------------------------------------------------------------------"
 echo $0
 echo "----------------------------------------------------------------------"
 echo ""
 
-mkdir -p $HOME/bin
+go version
 
-export PATH=/commons/bin:$HOME/bin:$PATH
+cd
 
-mkdir -p /usr/local/bin
+git clone https://github.com/syncthing/syncthing.git
 
-# record the pde variables
-#
-export PDE_VARS=$HOME/pdeVars
-#
-rm -rf $PDE_VARS
-cat <<PDE_FUNCTIONS > $PDE_VARS
-set -e
-set +x
-#
-# This pde bash function records an environment variable in the 
-# \$PDE_VARS file.
-#
-recordVar() {
-  varName=\$1
-  shift
-  echo "export \$varName=\"\$*\"" >> \$PDE_VARS
-  echo "export \$varName=\"\$*\""
-  . \$PDE_VARS
-}
-#
-# This pde bash function records an comment in the 
-# \$PDE_VARS file.
-#
-recordComment() {
-  echo "# \$*" >> \$PDE_VARS
-}
-PDE_FUNCTIONS
+cd syncthing
 
-. $PDE_VARS
+go run build.go
 
-recordVar PDE_VARS $HOME/pdeVars
+cd bin
 
-echo "source $HOME/pdeVars" >> $HOME/.bashrc
+ls -la
 
-touch $HOME/finalizePDE

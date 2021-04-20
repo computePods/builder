@@ -63,6 +63,7 @@ def mergeCekitImageDescriptions(iData, imageDefaults) :
   sanitizeFilePath(iData, 'curDir', None)
 
   setDefault(         iData, 'basedOn',         imageDefaults['basedOn'])
+  setDefault(         iData, 'buildBasedOn',    imageDefaults['buildBasedOn'])
   setDefault(         iData, 'description',     imageDefaults['description'])
   setDefault(         iData, 'version',         imageDefaults['version'])
   setDefault(         iData, 'packagesManager', imageDefaults['packagesManager'])

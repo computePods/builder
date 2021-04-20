@@ -21,3 +21,5 @@ packages:
 run:
   cmd:
     - nats-server
+    - '--log'
+    - '/tmp/nats.log'

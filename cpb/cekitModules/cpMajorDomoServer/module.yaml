@@ -1,0 +1,53 @@
+# This CEKit module describes how to install the computePods Chef tool on 
+# debian based distribution (any which uses apt-get to install packages)
+
+# This module:
+# - assumes a Debian (apt-get) based container,
+
+schema_version: 1
+
+name: cpMajorDomoServer
+version: 1.0
+description: Installs the computePod MajorDomo coordination service
+from: alpine
+
+execute:
+  - script: installCPMajorDomo.sh
+
+packages:
+  manager: apk
+  install:
+    - openssl
+
+artifacts:
+  # The binary lua modules built in the builder image
+  - name: luaLibs
+    image: builder
+    path: /root/luaLibs.tar
+    target: luaLibs.tar
+
+  # The PURE lua modules (as tar files)
+  - name: luaUUID
+    #see: https://github.com/Tieske/uuid
+    url: https://api.github.com/repos/Tieske/uuid/tarball/75f8428
+    target: luaUUID.tar.gz
+
+  - name: luaNATS
+    #see: https://github.com/DawnAngel/lua-nats
+    url: https://api.github.com/repos/DawnAngel/lua-nats/tarball/980da7a
+    target: luaNATS.tar.gz
+
+  - name: luaYAML
+    #see: https://github.com/exosite/lua-yaml
+    url: https://api.github.com/repos/exosite/lua-yaml/tarball/009b129
+    target: luaYAML.tar.gz
+
+  - name: luaPPrint
+    #see: https://github.com/jagt/pprint.lua
+    url: https://api.github.com/repos/jagt/pprint.lua/tarball/1848a3e
+    target: luaPPrint.tar.gz
+
+# Tell cpb that we have a two stage build which requires the
+# cpChefBuild-apt-get module
+#
+buildModule: cpMajorDomoBuild

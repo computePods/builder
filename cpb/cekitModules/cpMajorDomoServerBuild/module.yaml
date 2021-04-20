@@ -1,0 +1,32 @@
+# This CEKit module describes how to build the computePods Chef tool on 
+# debian based distribution (any which uses apt-get to install packages)
+
+# This module:
+# - assumes a Debian (apt-get) based container,
+
+schema_version: 1
+
+name: cpMajorDomoBuild
+version: 1.0
+description: Builds the computePod MajorDomo coordination service
+from: alpine
+
+execute:
+  - script: buildCPMajorDomo.sh
+
+packages:
+  manager: apk
+  install:
+    - git
+    - gcc
+    - make
+    - cmake
+    - musl-dev
+    - pkgconf-dev
+    - openssl-dev
+    - wget
+    - ca-certificates
+
+artifacts:
+  - name: lua.pc
+    path: lua.pc

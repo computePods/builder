@@ -10,7 +10,7 @@ schema_version: 1
 name: syncThingServerBuild
 version: 1.0
 description: Builds the SyncThing file synchronization service
-from: alpine
+from: golang:alpine
 
 execute:
   - script: buildSyncThing.sh
@@ -18,12 +18,4 @@ execute:
 packages:
   manager: apk
   install:
-    - make
     - git
-    - tig
-    - wget
-    - curl
-    - ca-certificates
-    - less
-    - nano
-    - tree

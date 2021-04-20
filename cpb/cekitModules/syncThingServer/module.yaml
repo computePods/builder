@@ -9,7 +9,7 @@ schema_version: 1
 
 name: syncThingServer
 version: 1.0
-description: Installs the NATS messaging service
+description: Installs the SyncThing file syncrhonization service
 from: alpine
 
 execute:
@@ -18,16 +18,25 @@ execute:
 packages:
   manager: apk
   install:
-    - make
-    - git
-    - tig
-    - wget
-    - curl
     - ca-certificates
-    - less
-    - nano
-    - tree
 
+run:
+  cmd:
+    - syncthing
+    - '--logfile'
+    - '/tmp/syncthing.log'
+
+artifacts:
+  # The goLang binaries built in the builder image
+  - name: goLangSyncThing
+    image: builder
+    path: /root/syncthing/bin/syncthing
+    target: syncthing
+
+  - name: config.xml
+    path: config.xml
+    target: config.xml
+    
 # Tell cpb that we have a two stage build which requires the
 # syncThingBuild module
 #

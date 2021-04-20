@@ -43,6 +43,7 @@ defaultPodDefaults = {
   'envs'                  : {},
   'secrets'               : [],
   'images'                : [
+    'majorDomoServer',
     'natServer',
     'syncThingServer'
   ],

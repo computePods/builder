@@ -1,0 +1,47 @@
+#!/bin/sh
+    
+# Pod creation script for the {{podData['podName']}} pod
+    
+# Port mappings for this pod
+#
+{% for aPortName, aPortDef in podData['ports'].items() %}
+# Port {{aPortDef}} used for {aPortName}{% endfor %}
+  
+# create the commons directory for this pod
+#
+mkdir -p {{podData['commonsDir']}}
+  
+# Create the pod
+  
+if podman pod exists {{podName}} ; then
+  echo Pod {{podName}} already exists...
+  exit 0
+fi
+  
+#
+podman pod create \
+  --name={{podData['podName']}} \
+  --label=io.github.computepods.type=pod \
+{% for aHost in podData['hosts'] %}
+  --add-host={{aHost}} \{% endfor %}
+{% for aPortName, aPortDef in podData['ports'].items() %}
+  --publish={{aPortDef}} \{% endfor %}
+  
+{% for anImage in podData['images'] %}
+# Create the {} worker container".format(anImage))
+#
+podman container create \
+  --pod={{podData['podName']}} \
+  --name={{podData['podName']}}-{{anImage}} \
+  --label=io.github.computepods.type=worker \
+{% for aHost in podData['hosts'] %}
+  --add-host={{aHost}} \{% endfor%}
+{% for envKey, envValue in podData['envs'].items() %}
+  --env={{envKey}}={{envValue}} \
+{% for aSecret in podData['secrets'] %}
+  --secret={{secret}} \{% endfor %}
+{% for aVolumeDef in podData['volumes'] %}
+  -volume={{aVolumeDef}} \{% endfor %}
+  {{podData['federationName'] | lower }}-{{anImage | lower}}
+    
+  

@@ -19,13 +19,24 @@ defaultCekitImageDescriptions = {
   'defaults'          : {
     'version'         : '1.0',
     'basedOn'         : 'debian:stable-slim',
+    'buildBasedOn'    : 'debian:stable-slim',
     'description'     : 'A computePod worker',
     'modules'         : [],
     'packagesManager' : 'apt-get',
     'repositories'    : []
   },
+  'majorDomoServer'   : {
+    'basedOn'         : 'alpine',
+    'buildBasedOn'    : 'alpine',
+    'description'     : 'The ComputePods MajorDomo coordination service',
+    'modules'         : [ 
+      'cpMajorDomoServer'
+    ],
+    'packagesManager' : 'apk',
+  },
   'natServer'         : {
     'basedOn'         : 'alpine',
+    'buildBasedOn'    : 'alpine',
     'description'     : 'The NATS messaging back-plane',
     'modules'         : [ 
       'natServer'
@@ -34,6 +45,7 @@ defaultCekitImageDescriptions = {
   },
   'syncThingServer'   : {
     'basedOn'         : 'alpine',
+    'buildBasedOn'    : 'docker.io/library/golang:alpine',
     'description'     : 'The SyncThing file syncronization back-plane',
     'modules'         : [ 
       'syncThingServer'
@@ -170,16 +182,30 @@ def normalizeConfig(config) :
           buildModules.append(modules[aModule]['buildModule'])
       if buildModules :
         anImageDesc['buildModules'] = buildModules
-      
+        
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
 
 ############################################################################
 # Do the work...
 
+def pushToRegistry(imageName, registry) :
+  if registry is not None :
+    try:
+      os.system("podman push {} {}".format(imageName.lower(), registry))
+    except Exception as err :
+      logging.error("Could not push the {} image to the {} registry.".format(imageName, registry))
+      logging.error("Do you need to login to the registry using podman?")
+      logging.error(err)
+      
 @click.command("build")
+@click.option("-R", "--registry", default=None,
+  help="An OCI image registry specifier (<host>[:<port>]) which if specified will be used to store images.")
+@click.option("-O", "--overwrite", default=False, is_flag=True, 
+  help="Allow existing images to be overwritten.",
+  prompt="Are you sure you want to overwite images?")
 @click.pass_context
-def build(ctx):
+def build(ctx, overwrite, registry):
   """
   uses CEKit to build podman images used by this computePod.
 
@@ -216,14 +242,37 @@ def build(ctx):
       logging.error("Could not render the Jinja2 template [{}]".format(fileName))
       logging.error(err)
 
+    imageName = imageDescs[anImageKey]['imageName']
+    imageNameLower = imageName.lower()
+    imageVersion = imageDescs[anImageKey]['version']
+    click.echo("\nChecking if the {} image exists".format(imageName))
+    if ((os.system("podman image exists {}".format(imageNameLower)) == 0) or
+      (os.system("podman image exists {}:{}".format(imageNameLower, imageVersion)) == 0)) :
+      if registry is not None :
+        pushToRegistry(imageName, registry)
+        continue
+      else:
+        if not overwrite :
+          click.echo("The {} image already exists and won't be overwritten.".format(imageName))
+          click.echo("  use the --overwrite option to overwrite this image.")
+          continue
+        else:
+          click.echo("Removing the {} image".format(imageName))
+          os.system("podman image rm {}".format(imageNameLower))
+          time.sleep(1)
+          click.echo("Removing the {}:{} image".format(imageName, imageVersion))
+          os.system("podman image rm {}:{}".format(imageNameLower, imageVersion))
+
     try:
       os.chdir(imageDir)
       click.echo("----------------------------------------------------------")
       click.echo("Using CEKit to build the {} image".format(anImageKey))
       click.echo("in the {} directory".format(imageDir))
       click.echo("")
-      os.system("echo cekit build podman")
+      os.system("../cpb-cekit build podman")
       click.echo("----------------------------------------------------------")
-    except Exception as err:
+    except Exception as err :
       logging.error("Could not build {} image using CEKit".format(anImageKey))
       logging.error(err)
+
+    pushToRegistry(imageName, registry)

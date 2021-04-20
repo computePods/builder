@@ -62,8 +62,11 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   setDefault(eData, 'keyFile', eData['name'] + '-key.pem')
   sanitizeFilePath(eData, 'keyFile', eData['workDir'])
 
-  setDefault(eData, 'podFile', eData['name'] + '-pod.sh')
-  sanitizeFilePath(eData, 'podFile', eData['workDir'])
+  setDefault(eData, 'podCreateFile', eData['name'] + '-create-pod.sh')
+  sanitizeFilePath(eData, 'podCreateFile', eData['workDir'])
+  
+  setDefault(eData, 'podRemoveFile', eData['name'] + '-remove-pod.sh')
+  sanitizeFilePath(eData, 'podRemoveFile', eData['workDir'])
   
   setDefault(eData, 'zipFile', eData['name'] + '.zip')
   sanitizeFilePath(eData, 'zipFile', eData['workDir'])
@@ -315,11 +318,15 @@ def createCertFor(msg, certData, caData) :
     click.echo("")
 
 def createPod(podData) :
-  logging.info("pod {} creation script".format(podData['name']))
+  podName = podData['podName']
+
+  logging.info("pod {} creation script".format(podData['podName']))
 
   script = [
     "#!/bin/sh",
     "",
+    "# Pod creation script for the {} pod".format(podData['podName']),
+    ""
     "# Port mappings for this pod",
     "#"
   ]
@@ -331,10 +338,16 @@ def createPod(podData) :
   script.append("mkdir -p {}".format(podData['commonsDir']))
   script.append("")
   script.append("# Create the pod")
+  script.append("")
+  script.append("if podman pod exists {} ; then".format(podName))
+  script.append("  echo Pod {} already exists...".format(podName))
+  script.append("  exit 0")
+  script.append("fi")
+  script.append("")
   script.append("#")
   script.append("podman pod create \\",)
   script.append("  --name={} \\".format(podData['podName']))
-  script.append("  --lable=io.github.computepods.type=pod \\")
+  script.append("  --label=io.github.computepods.type=pod \\")
   for aHost in podData['hosts'] :
     script.append("  --add-host={} \\".format(aHost))
   for aPortName, aPortDef in podData['ports'].items() :
@@ -346,23 +359,49 @@ def createPod(podData) :
     script.append("podman container create \\")
     script.append("  --pod={} \\".format(podData['podName']))
     script.append("  --name={}-{} \\".format(podData['podName'], anImage))
-    script.append("  --lable=io.github.computepods.type=worker \\")
+    script.append("  --label=io.github.computepods.type=worker \\")
     for aHost in podData['hosts'] :
       script.append("  --add-host={} \\".format(aHost))
     for envKey, envValue in podData['envs'].items() :
       script.append("  --env={}={} \\".format(envKey, envValue))
-    for aPortName, aPortDef in podData['ports'].items() :
-      script.append("  --publish={} \\".format(aPortDef))
+    #for aPortName, aPortDef in podData['ports'].items() :
+    #  script.append("  --publish={} \\".format(aPortDef))
     for aSecret in podData['secrets'] :
       script.append("  --secret={} \\".format(secret))
     for aVolumeDef in podData['volumes'] :
       script.append("  --volume={} \\".format(aVolumeDef))
+    script.append("  {}-{}".format(podData['federationName'], anImage).lower())
     script.append("")
   script.append("")
-  podFile = open(podData['podFile'], "w")
+  podFile = open(podData['podCreateFile'], "w")
   podFile.write("\n".join(script))
   podFile.close()
-  os.chmod(podData['podFile'], 
+  os.chmod(podData['podCreateFile'], 
+    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+    stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
+    stat.S_IROTH | stat.S_IXOTH)
+
+  logging.info("pod {} removal script".format(podData['podName']))
+  script = [
+    "#!/bin/sh",
+    "",
+    "# Pod removal script for the {} pod".format(podData['podName']),
+  ]
+
+  script.append("\nif podman pod exists {} ; then".format(podName))
+  script.append("  podman pod stop {}".format(podName))
+  script.append("  podman pod rm {}".format(podName))
+  script.append("fi")
+  for anImage in podData['images'] :
+    containerName = "{}-{}".format(podName, anImage)
+    script.append("\nif podman container exists {} ; then".format(containerName))
+    script.append("  podman container rm {}".format(containerName))
+    script.append("fi")
+  script.append("")
+  podFile = open(podData['podRemoveFile'], "w")
+  podFile.write("\n".join(script))
+  podFile.close()
+  os.chmod(podData['podRemoveFile'], 
     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
     stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
     stat.S_IROTH | stat.S_IXOTH)
@@ -378,7 +417,8 @@ def createPod(podData) :
     saveFile(podData['csrFile'])
     saveFile(podData['certFile'])
     saveFile(podData['keyFile'])
-    saveFile(podData['podFile'])
+    saveFile(podData['podCreateFile'])
+    saveFile(podData['podRemoveFile'])
 
 ############################################################################
 # Do the work...
