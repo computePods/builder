@@ -2,6 +2,23 @@
 
 import os
 
+def getRegistryFlagAndPath(imageName, registry) :
+  registryFlag = "--tls-verify=false"
+  if 'isSecure' in registry and registry['isSecure'] :
+    registryFlag = "--tls-verify=true"
+
+  registryPath = ""
+  if 'host' in registry :
+    registryPath = registry['host']
+  if 'port' in registry :
+    registryPath += ':{}'.format(registry['port'])
+  if 'path' in registry :
+    if registry['path'][0] != '/' :
+      registryPath += '/'
+    registryPath += registry['path']
+  registryPath += '/{}'.format(imageName)
+  return registryFlag, registryPath.lower()
+
 def sanitizeFilePath(config, filePathKey, pathPrefix) :
   if config[filePathKey][0] == "~" :
     config[filePathKey] = os.path.abspath(
@@ -47,8 +64,8 @@ def mergeDictDefaults(eData, key, value) :
   eData[key] = newDict
 
 def mergePodDefaults(eData, podDefaults) :
-  setDefault(      eData, 'commonsBaseDir', os.path.join("~", "commons"))
-  sanitizeFilePath(eData, 'commonsBaseDir', None)
+  setDefault(      eData, 'commonsBaseDir', os.path.join("$HOME", "commons"))
+  #sanitizeFilePath(eData, 'commonsBaseDir', None)
   
   appendListDefaults(eData, 'hosts',         podDefaults)
   mergeDictDefaults( eData, 'ports',         podDefaults)

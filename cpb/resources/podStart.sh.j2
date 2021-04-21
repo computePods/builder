@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Start the {{ podName }} pod
+
+if podman pod exists {{ podName }} ; then
+  podman pod start {{ podName }}
+fi

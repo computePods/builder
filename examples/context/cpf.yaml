@@ -89,3 +89,24 @@ cekitImageDescriptions:
     version: 1.0
     modules:
       - context
+
+# Now we provide the (private) central OCI registry to use to push/pull 
+# images. 
+#
+registry:
+  host: oci-registry
+  port: 5000
+#  path: a/path
+  isSecure: false
+#
+# NOTE: with `isSecure: false` you can use a local registry which has no 
+# TLS/SSL certificates or authorized users. This option is useful if you 
+# run a *temporary* registry which is running only while you build images 
+# and/or create your pods. (Access to the registry is ONLY needed during 
+# these two times).
+#
+# ALTERNATIVELY you can run your own *secure* registry, for pdoman see the 
+# excellent tutorial: 
+#
+#      https://www.redhat.com/sysadmin/simple-container-registry
+#

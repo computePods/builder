@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Pod removal script for the {{ podName }} pod
+
+if podman pod exists {{ podName }} ; then
+  podman pod stop {{ podName }}
+  podman pod rm {{ podName }}
+fi
+
+{% for anImage in images %}
+if podman container exists {{ podName }}-{{ anImage }} ; then
+  podman container rm {{ podName }}-{{ anImage }}
+fi
+{% endfor %}

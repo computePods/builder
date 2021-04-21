@@ -190,22 +190,25 @@ def normalizeConfig(config) :
 # Do the work...
 
 def pushToRegistry(imageName, registry) :
-  if registry is not None :
+    registryFlag, registryPath = getRegistryFlagAndPath(imageName, registry)
     try:
-      os.system("podman push {} {}".format(imageName.lower(), registry))
+      cmd = "podman push {} {} docker://{}".format(registryFlag, imageName.lower(), registryPath)
+      logging.info("pushing image using:\n  {}".format(cmd))
+      os.system(cmd)
     except Exception as err :
-      logging.error("Could not push the {} image to the {} registry.".format(imageName, registry))
+      logging.error("Could not push the {} image to the {} registry.".format(imageName, registryPath))
       logging.error("Do you need to login to the registry using podman?")
       logging.error(err)
       
 @click.command("build")
-@click.option("-R", "--registry", default=None,
-  help="An OCI image registry specifier (<host>[:<port>]) which if specified will be used to store images.")
+@click.option("-P", "--push", default=False, is_flag=True,
+  help="Push images to the federation registry.",
+  prompt="Do you want to push images to the federation registry?")
 @click.option("-O", "--overwrite", default=False, is_flag=True, 
   help="Allow existing images to be overwritten.",
-  prompt="Are you sure you want to overwite images?")
+  prompt="Do you want to overwite images?")
 @click.pass_context
-def build(ctx, overwrite, registry):
+def build(ctx, overwrite, push):
   """
   uses CEKit to build podman images used by this computePod.
 
@@ -213,6 +216,11 @@ def build(ctx, overwrite, registry):
   config = ctx.obj
   normalizeConfig(config)
 
+  if push and 'registry' not in config['cpf'] :
+    click.echo("You have asked to push images to a registry...")
+    click.echo("  ... but you have not specified a registry in the cpf.yaml")
+    click.echo("  we will NOT push images!")
+    
   cekitMonkeyPatch = importlib.resources.read_text(
     "cpb.resources", "cekitWithExtendedModule" )
   with open(config['cekitCmd'], 'w') as outFile :
@@ -248,8 +256,8 @@ def build(ctx, overwrite, registry):
     click.echo("\nChecking if the {} image exists".format(imageName))
     if ((os.system("podman image exists {}".format(imageNameLower)) == 0) or
       (os.system("podman image exists {}:{}".format(imageNameLower, imageVersion)) == 0)) :
-      if registry is not None :
-        pushToRegistry(imageName, registry)
+      if push and 'registry' in config['cpf'] :
+        pushToRegistry(imageName, config['cpf']['registry'])
         continue
       else:
         if not overwrite :
@@ -275,4 +283,5 @@ def build(ctx, overwrite, registry):
       logging.error("Could not build {} image using CEKit".format(anImageKey))
       logging.error(err)
 
-    pushToRegistry(imageName, registry)
+    if push and 'registry' in config['cpf'] :
+      pushToRegistry(imageName, config['cpf']['registry'])

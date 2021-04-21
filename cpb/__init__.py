@@ -30,7 +30,7 @@ defaultConfig = {
 }
 
 defaultPodDefaults = {
-  'commonsBaseDir'        : os.path.join("~", "commons"),
+  'commonsBaseDir'        : os.path.join("$HOME", "commons"),
   'hosts'                 : [],
   'ports'                 : {
     'natsMsgs'            : 4222,

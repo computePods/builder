@@ -1,47 +1,73 @@
 #!/bin/sh
     
-# Pod creation script for the {{podData['podName']}} pod
+# Pod creation script for the {{ podName }} pod
     
 # Port mappings for this pod
 #
-{% for aPortName, aPortDef in podData['ports'].items() %}
-# Port {{aPortDef}} used for {aPortName}{% endfor %}
-  
-# create the commons directory for this pod
+{%- for aPortName, aPortDef in ports.items() %}
+# Port {{ aPortDef }} used for {{ aPortName }}
+{%- endfor %}
+
+# Check if this pod already exists
 #
-mkdir -p {{podData['commonsDir']}}
-  
-# Create the pod
-  
-if podman pod exists {{podName}} ; then
-  echo Pod {{podName}} already exists...
+if podman pod exists {{ podName }} ; then
+  echo Pod {{ podName }} already exists...
   exit 0
 fi
   
+# Create the commons directory for this pod
+#
+mkdir -p {{ commonsDir }}
+  
+# Create the pod
 #
 podman pod create \
-  --name={{podData['podName']}} \
+  --name={{ podName }} \
   --label=io.github.computepods.type=pod \
-{% for aHost in podData['hosts'] %}
-  --add-host={{aHost}} \{% endfor %}
-{% for aPortName, aPortDef in podData['ports'].items() %}
-  --publish={{aPortDef}} \{% endfor %}
+{%- if hosts | length -%}
+{%-   for aHost in hosts %}
+  --add-host={{ aHost }} \
+{%-   endfor -%}
+{%- endif -%}
+{%- if ports | length -%}
+{%-   for aPortName, aPortDef in ports.items() %}
+  --publish={{ aPortDef }} \
+{%-   endfor -%}
+{%- endif %}
   
-{% for anImage in podData['images'] %}
-# Create the {} worker container".format(anImage))
+{% for anImage in images %}
+# Pull the {{ anImage }} image
+#
+if ! podman image exists {{ imageLocal[anImage] }} ; then
+  podman pull {{ imageRemote[anImage][0] }} {{ imageRemote[anImage][1] }}
+fi
+
+# Create the {{ anImage }} worker container
 #
 podman container create \
-  --pod={{podData['podName']}} \
-  --name={{podData['podName']}}-{{anImage}} \
+  --pod={{ podName }} \
+  --name={{ podName }}-{{ anImage }} \
   --label=io.github.computepods.type=worker \
-{% for aHost in podData['hosts'] %}
-  --add-host={{aHost}} \{% endfor%}
-{% for envKey, envValue in podData['envs'].items() %}
-  --env={{envKey}}={{envValue}} \
-{% for aSecret in podData['secrets'] %}
-  --secret={{secret}} \{% endfor %}
-{% for aVolumeDef in podData['volumes'] %}
-  -volume={{aVolumeDef}} \{% endfor %}
-  {{podData['federationName'] | lower }}-{{anImage | lower}}
-    
-  
+{%- if hosts | length -%}
+{%-   for aHost in hosts %}
+  --add-host={{ aHost }} \
+{%-   endfor %}
+{%- endif -%}
+{%- if envs.keys() | length -%}
+{%-   for envKey, envValue in envs.items() %}
+  --env={{ envKey }}={{ envValue }} \
+{%-   endfor %}
+{%- endif -%}
+{%- if secrets | length -%}
+{%-   for aSecret in secrets %}
+  --secret={{ secret }} \
+{%-   endfor %}
+{%- endif -%}
+{%- if volumes | length -%}
+{%-   for aVolumeDef in volumes %}
+  --volume={{ aVolumeDef }} \
+{%-   endfor %}
+{%- endif %}
+  {{ imageLocal[anImage] }}
+{% endfor %}
+

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Stop the {{ podName }} pod
+
+if podman pod exists {{ podName }} ; then
+  podman pod stop {{ podName }}
+fi

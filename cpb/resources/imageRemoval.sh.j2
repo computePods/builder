@@ -1,0 +1,11 @@
+#!/bin/sh
+    
+# Image removal script for the {{ podName }} pod
+    
+{% for anImage in images %}
+# Remove the {{ anImage }} image
+#
+if podman image exists {{ imageLocal[anImage] }} ; then
+  podman image rm {{ imageLocal[anImage] }}
+fi
+{% endfor %}

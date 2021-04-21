@@ -1,6 +1,8 @@
 # This python3 click subcommand creates a new pde commons area
 
 import click
+import importlib.resources
+import jinja2
 import logging
 import os
 import pyzipper
@@ -61,12 +63,6 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
 
   setDefault(eData, 'keyFile', eData['name'] + '-key.pem')
   sanitizeFilePath(eData, 'keyFile', eData['workDir'])
-
-  setDefault(eData, 'podCreateFile', eData['name'] + '-create-pod.sh')
-  sanitizeFilePath(eData, 'podCreateFile', eData['workDir'])
-  
-  setDefault(eData, 'podRemoveFile', eData['name'] + '-remove-pod.sh')
-  sanitizeFilePath(eData, 'podRemoveFile', eData['workDir'])
   
   setDefault(eData, 'zipFile', eData['name'] + '.zip')
   sanitizeFilePath(eData, 'zipFile', eData['workDir'])
@@ -89,8 +85,16 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
     mergePodDefaults(eData, podDefaults)
     setDefault(eData, 'podName',  "{}-{}".format(eData['federationName'], eData['name']))
     setDefault(eData, 'commonsDir', os.path.join(eData['commonsBaseDir'], 'cps', eData['podName']))
-    sanitizeFilePath(eData, 'commonsDir', None)
+    #sanitizeFilePath(eData, 'commonsDir', None)
     eData['volumes'].append("{}:/commons".format(eData['commonsDir']))
+    eData['imageLocal']  = {}
+    eData['imageRemote'] = {}
+    for anImage in eData['images'] :
+      localImageName = "{}-{}".format(eData['federationName'], anImage).lower()
+      eData['imageLocal' ][anImage] = localImageName
+      eData['imageRemote'][anImage] = getRegistryFlagAndPath(
+        localImageName,
+        config['cpf']['registry'])
 
 def normalizeConfig(config) :
 
@@ -317,94 +321,87 @@ def createCertFor(msg, certData, caData) :
     click.echo("----cert-file-generation----")
     click.echo("")
 
+def saveShellScriptTemplate(templateName, theTemplate, templateValues, filePath) :
+  try:
+    template = jinja2.Template(theTemplate)
+    fileContents = template.render(templateValues) 
+    with open(filePath, 'w') as outFile :
+      outFile.write(fileContents)
+    os.chmod(filePath, 
+      stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+      stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
+      stat.S_IROTH | stat.S_IXOTH)    
+  except Exception as err:
+    logging.error("Could not render the Jinja2 template [{}]".format(templateName))
+    logging.error(err)
+
 def createPod(podData) :
-  podName = podData['podName']
 
-  logging.info("pod {} creation script".format(podData['podName']))
+  logging.info("creating the pod {} scripts".format(podData['podName']))
 
-  script = [
-    "#!/bin/sh",
-    "",
-    "# Pod creation script for the {} pod".format(podData['podName']),
-    ""
-    "# Port mappings for this pod",
-    "#"
-  ]
-  for aPortName, aPortDef in podData['ports'].items() :
-    script.append("# Port {} used for {}".format(aPortDef, aPortName))
-  script.append("")
-  script.append("# create the commons directory for this pod")
-  script.append("#")
-  script.append("mkdir -p {}".format(podData['commonsDir']))
-  script.append("")
-  script.append("# Create the pod")
-  script.append("")
-  script.append("if podman pod exists {} ; then".format(podName))
-  script.append("  echo Pod {} already exists...".format(podName))
-  script.append("  exit 0")
-  script.append("fi")
-  script.append("")
-  script.append("#")
-  script.append("podman pod create \\",)
-  script.append("  --name={} \\".format(podData['podName']))
-  script.append("  --label=io.github.computepods.type=pod \\")
-  for aHost in podData['hosts'] :
-    script.append("  --add-host={} \\".format(aHost))
-  for aPortName, aPortDef in podData['ports'].items() :
-    script.append("  --publish={} \\".format(aPortDef))
-  script.append("")
+  scriptPaths = []
+  
+  podData['podScriptFile'] = podData['name'] + '-create-pod.sh'
+  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
+  scriptPaths.append(podData['podScriptFile'])
+  saveShellScriptTemplate(
+    'podCreation.sh.j2',
+    importlib.resources.read_text('cpb.resources', 'podCreation.sh.j2'),
+    podData,
+    podData['podScriptFile']
+  )
+
+  podData['podScriptFile'] = podData['name'] + '-remove-pod.sh'
+  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
+  scriptPaths.append(podData['podScriptFile'])
+  saveShellScriptTemplate(
+    'podRemoval.sh.j2',
+    importlib.resources.read_text('cpb.resources', 'podRemoval.sh.j2'),
+    podData,
+    podData['podScriptFile']
+  )
+
+  podData['podScriptFile'] = podData['name'] + '-remove-images.sh'
+  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
+  scriptPaths.append(podData['podScriptFile'])
+  saveShellScriptTemplate(
+    'imageRemoval.sh.j2',
+    importlib.resources.read_text('cpb.resources', 'imageRemoval.sh.j2'),
+    podData,
+    podData['podScriptFile']
+  )
+
+  podData['podScriptFile'] = podData['name'] + '-start-pod.sh'
+  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
+  scriptPaths.append(podData['podScriptFile'])
+  saveShellScriptTemplate(
+    'podStart.sh.j2',
+    importlib.resources.read_text('cpb.resources', 'podStart.sh.j2'),
+    podData,
+    podData['podScriptFile']
+  )
+
+  podData['podScriptFile'] = podData['name'] + '-stop-pod.sh'
+  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
+  scriptPaths.append(podData['podScriptFile'])
+  saveShellScriptTemplate(
+    'podStop.sh.j2',
+    importlib.resources.read_text('cpb.resources', 'podStop.sh.j2'),
+    podData,
+    podData['podScriptFile']
+  )
+
+  theTemplate = importlib.resources.read_text('cpb.resources', 'enterContainer.sh.j2')
   for anImage in podData['images'] :
-    script.append("# Create the {} worker container".format(anImage))
-    script.append("#")
-    script.append("podman container create \\")
-    script.append("  --pod={} \\".format(podData['podName']))
-    script.append("  --name={}-{} \\".format(podData['podName'], anImage))
-    script.append("  --label=io.github.computepods.type=worker \\")
-    for aHost in podData['hosts'] :
-      script.append("  --add-host={} \\".format(aHost))
-    for envKey, envValue in podData['envs'].items() :
-      script.append("  --env={}={} \\".format(envKey, envValue))
-    #for aPortName, aPortDef in podData['ports'].items() :
-    #  script.append("  --publish={} \\".format(aPortDef))
-    for aSecret in podData['secrets'] :
-      script.append("  --secret={} \\".format(secret))
-    for aVolumeDef in podData['volumes'] :
-      script.append("  --volume={} \\".format(aVolumeDef))
-    script.append("  {}-{}".format(podData['federationName'], anImage).lower())
-    script.append("")
-  script.append("")
-  podFile = open(podData['podCreateFile'], "w")
-  podFile.write("\n".join(script))
-  podFile.close()
-  os.chmod(podData['podCreateFile'], 
-    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
-    stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
-    stat.S_IROTH | stat.S_IXOTH)
-
-  logging.info("pod {} removal script".format(podData['podName']))
-  script = [
-    "#!/bin/sh",
-    "",
-    "# Pod removal script for the {} pod".format(podData['podName']),
-  ]
-
-  script.append("\nif podman pod exists {} ; then".format(podName))
-  script.append("  podman pod stop {}".format(podName))
-  script.append("  podman pod rm {}".format(podName))
-  script.append("fi")
-  for anImage in podData['images'] :
-    containerName = "{}-{}".format(podName, anImage)
-    script.append("\nif podman container exists {} ; then".format(containerName))
-    script.append("  podman container rm {}".format(containerName))
-    script.append("fi")
-  script.append("")
-  podFile = open(podData['podRemoveFile'], "w")
-  podFile.write("\n".join(script))
-  podFile.close()
-  os.chmod(podData['podRemoveFile'], 
-    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
-    stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
-    stat.S_IROTH | stat.S_IXOTH)
+    podData['podScriptFile'] = '{}-enter-{}.sh'.format(podData['name'], anImage)
+    sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
+    scriptPaths.append(podData['podScriptFile'])
+    saveShellScriptTemplate(
+      'enterContainer.sh.j2 ({})'.format(anImage),
+      theTemplate,
+      { 'podName' : podData['podName'], 'anImage' : anImage },
+      podData['podScriptFile']
+    )
 
   # Then zip up the directory...
   with pyzipper.AESZipFile(podData['zipFile'], 'w', compression=pyzipper.ZIP_LZMA) as zf:
@@ -417,8 +414,8 @@ def createPod(podData) :
     saveFile(podData['csrFile'])
     saveFile(podData['certFile'])
     saveFile(podData['keyFile'])
-    saveFile(podData['podCreateFile'])
-    saveFile(podData['podRemoveFile'])
+    for aPath in scriptPaths :
+      saveFile(aPath)
 
 ############################################################################
 # Do the work...
