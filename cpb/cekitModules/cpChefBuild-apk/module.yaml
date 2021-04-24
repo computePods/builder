@@ -1,8 +1,8 @@
-# This CEKit module describes how to build the computePods Chef tool on 
-# debian based distribution (any which uses apt-get to install packages)
+# This CEKit module describes how to build the computePods Chef tool in an 
+# Alpine container. 
 
 # This module:
-# - assumes a Debian (apt-get) based container,
+# - assumes an Alpine (apk) based container,
 
 schema_version: 1
 

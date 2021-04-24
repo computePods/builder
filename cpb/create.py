@@ -5,7 +5,7 @@ import importlib.resources
 import jinja2
 import logging
 import os
-import pyzipper
+import py7zr
 import random
 import stat
 import string
@@ -64,8 +64,8 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   setDefault(eData, 'keyFile', eData['name'] + '-key.pem')
   sanitizeFilePath(eData, 'keyFile', eData['workDir'])
   
-  setDefault(eData, 'zipFile', eData['name'] + '.zip')
-  sanitizeFilePath(eData, 'zipFile', eData['workDir'])
+  setDefault(eData, '7zFile', eData['name'] + '.7z')
+  sanitizeFilePath(eData, '7zFile', eData['workDir'])
 
   setDefault(eData, 'keySize',        config['cpf']['keySize'])
   setDefault(eData, 'days',           caData['days'])
@@ -403,13 +403,10 @@ def createPod(podData) :
       podData['podScriptFile']
     )
 
-  # Then zip up the directory...
-  with pyzipper.AESZipFile(podData['zipFile'], 'w', compression=pyzipper.ZIP_LZMA) as zf:
+  # Then 7-zip up the directory...
+  with py7zr.SevenZipFile(podData['7zFile'], 'w', password=podData['password']) as zf:
     def saveFile(fileName) :
-      zf.write(fileName, os.path.join('podConfig', os.path.basename(fileName)))
-    zf.setpassword(bytes(podData['password'], 'utf-8'))
-    zf.setencryption(pyzipper.WZ_AES, nbits=128)
-    #zf.write(podData['sslConfigFile'], os.path.join('podConfig', os.path.basename(podData['sslConfigFile'])))
+      zf.write(fileName, arcname=os.path.join('podConfig', os.path.basename(fileName)))
     saveFile(podData['sslConfigFile'])
     saveFile(podData['csrFile'])
     saveFile(podData['certFile'])

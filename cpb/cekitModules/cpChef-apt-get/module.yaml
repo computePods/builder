@@ -47,6 +47,11 @@ artifacts:
     url: https://api.github.com/repos/jagt/pprint.lua/tarball/1848a3e
     target: luaPPrint.tar.gz
 
+run:
+  cmd:
+    - sleep
+    - infinity
+
 # Tell cpb that we have a two stage build which requires the
 # cpChefBuild-apt-get module
 #

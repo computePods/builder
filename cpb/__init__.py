@@ -32,12 +32,12 @@ defaultConfig = {
 defaultPodDefaults = {
   'commonsBaseDir'        : os.path.join("$HOME", "commons"),
   'hosts'                 : [],
-  'ports'                 : {
-    'natsMsgs'            : 4222,
-    #'natsRouting'        : 6222,
-    #'natsMonitor'        : 8222,
-    'syncThing'           : 22000, # both TCP and UDP
-    #'syncThingDiscovery' : 21027 # UDP
+  'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
+    'natsMsgs'            : '4222:4222',
+    #'natsRouting'        : '6222:6222',
+    #'natsMonitor'        : '8222:8222',
+    'syncThing'           : '22000:22000', # both TCP and UDP
+    #'syncThingDiscovery' : '21027:21027' # UDP
   },
   'volumes'               : [],
   'envs'                  : {},

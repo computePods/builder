@@ -1,8 +1,8 @@
-# This CEKit module describes how to install the computePods Chef tool on 
-# debian based distribution (any which uses apt-get to install packages)
+# This CEKit module describes how to install the computePods Chef tool in 
+# an Alpine container. 
 
 # This module:
-# - assumes a Debian (apt-get) based container,
+# - assumes an Alpine (apk) based container,
 
 schema_version: 1
 
@@ -46,6 +46,11 @@ artifacts:
     #see: https://github.com/jagt/pprint.lua
     url: https://api.github.com/repos/jagt/pprint.lua/tarball/1848a3e
     target: luaPPrint.tar.gz
+
+run:
+  cmd:
+    - sleep
+    - infinity
 
 # Tell cpb that we have a two stage build which requires the
 # cpChefBuild-apt-get module
