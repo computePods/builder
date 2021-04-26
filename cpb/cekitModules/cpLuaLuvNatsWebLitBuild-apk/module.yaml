@@ -1,18 +1,18 @@
-# This CEKit module describes how to build the computePods Chef tool in an 
-# Alpine container. 
+# This CEKit module describes how to build the computePods MajorDomo tool 
+# on Alpine. 
 
 # This module:
 # - assumes an Alpine (apk) based container,
 
 schema_version: 1
 
-name: cpChefBuild-apk
+name: cpLuaLuvNatsWebLitBuild-apk
 version: 1.0
-description: Builds the computePods Chef tool (alpine version)
+description: Builds the Alpine version of Lua, Luv, Luv-Nats, and WebLit base image
 from: alpine
 
 execute:
-  - script: buildCPChef.sh
+  - script: buildCPLuaLuvNatsWebLit.sh
 
 packages:
   manager: apk

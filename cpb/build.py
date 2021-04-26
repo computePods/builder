@@ -35,6 +35,7 @@ defaultCekitImageDescriptions = {
     'packagesManager' : 'apk',
   },
   'natServer'         : {
+    'version'         : '1.0',
     'basedOn'         : 'alpine',
     'buildBasedOn'    : 'alpine',
     'description'     : 'The NATS messaging back-plane',
@@ -44,6 +45,7 @@ defaultCekitImageDescriptions = {
     'packagesManager' : 'apk',
   },
   'syncThingServer'   : {
+    'version'         : '1.0',
     'basedOn'         : 'alpine',
     'buildBasedOn'    : 'docker.io/library/golang:alpine',
     'description'     : 'The SyncThing file syncronization back-plane',
@@ -51,6 +53,26 @@ defaultCekitImageDescriptions = {
       'syncThingServer'
     ],
     'packagesManager' : 'apk',
+  },
+  'cpLuaLuvNatsWebLitBuild-apk' : {
+    'version'         : '1.0',
+    'basedOn'         : 'alpine',
+    'buildBasedOn'    : 'alpine',
+    'packagesManager' : 'apk',
+    'description'     : 'An Alpine Base image containing Lua, Luv, Luv-NATS and WebLit',
+    'modules'         : [
+      'cpLuaLuvNatsWebLitBuild-apk'
+    ]
+  },
+  'cpLuaLuvNatsWebLitBuild-apt-get' : {
+    'version'         : '1.0',
+    'basedOn'         : 'debian:stable-slim',
+    'buildBasedOn'    : 'debian:stable-slim',
+    'packagesManager' : 'apt-get',
+    'description'     : 'A Debian Base image containing Lua, Luv, Luv-NATS and WebLit',
+    'modules'         : [
+      'cpLuaLuvNatsWebLitBuild-apt-get'
+    ]
   }
 }
 
@@ -118,6 +140,16 @@ def normalizeConfig(config) :
     logging.error("A compute pod federation name MUST have some cekit image descriptions defined!")
     sys.exit(-1)  
 
+  baseImages = {}
+  baseImageList = config['cpf']['podDefaults']['baseImages']
+  for anImage in baseImageList :
+    baseImages[anImage] = True
+  computePods = config['cpf']['computePods']
+  for aPod in computePods :
+    if 'baseImages' in aPod :
+      for anImage in aPod['baseImages'] :
+        baseImages[anImage] = True
+
   images = {}
   imageList = config['cpf']['podDefaults']['images']
   for anImage in imageList :
@@ -127,7 +159,6 @@ def normalizeConfig(config) :
     if 'images' in aPod :
       for anImage in aPod['images'] :
         images[anImage] = True
-  config['imagesToBuild'] = list(images.keys())
 
   defaultImageDesc = defaultCekitImageDescriptions['defaults']
   config['buildCekitModulesDir'] = os.path.join(config['buildDir'], 'cekitModules')
@@ -154,6 +185,8 @@ def normalizeConfig(config) :
       setDefault(anImageDesc, 'name',      anImageName)
       setDefault(anImageDesc, 'imageName', "{}-{}".format(config['federationName'], anImageName))
       anImageDesc['modules'].insert(len(defaultImageDesc['modules']), 'cpChef-{}'.format(anImageDesc['packagesManager']))
+      # Now check if we are going to use a non-apk cpChef (and so need a non-apk cpLuaLuvNatsWebLit)
+      baseImages['cpLuaLuvNatsWebLitBuild-{}'.format(anImageDesc['packagesManager'])] = True
   #
   # Add in the default image definitions (defined above)
   #
@@ -166,12 +199,18 @@ def normalizeConfig(config) :
       setDefault(imageDescs[anImageName], 'name',      anImageName)
       setDefault(imageDescs[anImageName], 'imageName', "{}-{}".format(config['federationName'], anImageName))
   #
+  # Correct the image names of any baseImages
+  #
+  for anImageName in baseImages.keys() :
+    imageDescs[anImageName]['imageName'] = imageDescs[anImageName]['name']
+  #
   # Now add any required build modules
   #
   modules = config['modules']
   for anImageName, anImageDesc in imageDescs.items() :
     if anImageName != 'defaults' :
       buildModules = []
+      artifactImages = {}
 
       for aModule in anImageDesc['modules'] :
         if aModule not in modules :
@@ -180,9 +219,17 @@ def normalizeConfig(config) :
         
         if 'buildModule' in modules[aModule] :
           buildModules.append(modules[aModule]['buildModule'])
+        if 'artifactImages' in modules[aModule] :
+          for anArtifactImage in modules[aModule]['artifactImages'] :
+            artifactImages[anArtifactImage] = True
       if buildModules :
         anImageDesc['buildModules'] = buildModules
+      if artifactImages :
+        anImageDesc['artifactImages'] = list(artifactImages.keys())
         
+  config['baseImagesToBuild'] = list(baseImages.keys())
+  config['imagesToBuild'] = list(images.keys())
+
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
 
@@ -199,6 +246,61 @@ def pushToRegistry(imageName, registry) :
       logging.error("Could not push the {} image to the {} registry.".format(imageName, registryPath))
       logging.error("Do you need to login to the registry using podman?")
       logging.error(err)
+
+def buildAnImage(anImageKey, imageDescs, config, overwrite, push) :
+  if anImageKey not in imageDescs :
+    logging.error("No cekit image description provided for the {} image!".format(anImageKey))
+    sys.exit(-1)
+
+  imageDir = os.path.join(config['buildDir'], anImageKey)
+  fileName = 'image.yaml'
+  os.makedirs(imageDir, exist_ok=True)
+  cekitImageJ2 = importlib.resources.read_text('cpb.resources', 'cekitImage.yaml.j2')
+  try: 
+    template = jinja2.Template(cekitImageJ2)
+    fileContents = template.render(imageDescs[anImageKey]) 
+    with open(os.path.join(imageDir, "image.yaml"), 'w') as outFile :
+      outFile.write(fileContents)
+  except Exception as err:
+    logging.error("Could not render the Jinja2 template [{}]".format(fileName))
+    logging.error(err)
+
+  imageName = imageDescs[anImageKey]['imageName']
+  imageNameLower = imageName.lower()
+  imageVersion = imageDescs[anImageKey]['version']
+  click.echo("\nChecking if the {} image exists".format(imageName))
+  if ((os.system("podman image exists {}".format(imageNameLower)) == 0) or
+    (os.system("podman image exists {}:{}".format(imageNameLower, imageVersion)) == 0)) :
+    if push and 'registry' in config['cpf'] :
+      pushToRegistry(imageName, config['cpf']['registry'])
+      return
+    else:
+      if not overwrite :
+        click.echo("The {} image already exists and won't be overwritten.".format(imageName))
+        click.echo("  use the --overwrite option to overwrite this image.")
+        return
+      else:
+        click.echo("Removing the {} image".format(imageName))
+        os.system("podman image rm {}".format(imageNameLower))
+        time.sleep(1)
+        click.echo("Removing the {}:{} image".format(imageName, imageVersion))
+        os.system("podman image rm {}:{}".format(imageNameLower, imageVersion))
+
+  try:
+    os.chdir(imageDir)
+    click.echo("----------------------------------------------------------")
+    click.echo("Using CEKit to build the {} image".format(anImageKey))
+    click.echo("in the {} directory".format(imageDir))
+    click.echo("")
+    os.system("../cpb-cekit build podman")
+    click.echo("----------------------------------------------------------")
+  except Exception as err :
+    logging.error("Could not build {} image using CEKit".format(anImageKey))
+    logging.error(err)
+
+  if push and 'registry' in config['cpf'] :
+    pushToRegistry(imageName, config['cpf']['registry'])
+
       
 @click.command("build")
 @click.option("-P", "--push", default=False, is_flag=True,
@@ -220,7 +322,8 @@ def build(ctx, overwrite, push):
     click.echo("You have asked to push images to a registry...")
     click.echo("  ... but you have not specified a registry in the cpf.yaml")
     click.echo("  we will NOT push images!")
-    
+
+  # Make sure we have OUT monkey patched cekit script available    
   cekitMonkeyPatch = importlib.resources.read_text(
     "cpb.resources", "cekitWithExtendedModule" )
   with open(config['cekitCmd'], 'w') as outFile :
@@ -231,57 +334,11 @@ def build(ctx, overwrite, push):
     stat.S_IROTH | stat.S_IXOTH)
 
   imageDescs = config['cpf']['cekitImageDescriptions']
+
+  # Start by building any base images we know about
+  for anImageKey in config['baseImagesToBuild'] :
+    buildAnImage(anImageKey, imageDescs, config, overwrite, push)
+
+  # Now build the container images
   for anImageKey in config['imagesToBuild'] :
-
-    if anImageKey not in imageDescs :
-      logging.error("No cekit image description provided for the {} image!".format(anImageKey))
-      sys.exit(-1)
-
-    imageDir = os.path.join(config['buildDir'], anImageKey)
-    fileName = 'image.yaml'
-    os.makedirs(imageDir, exist_ok=True)
-    cekitImageJ2 = importlib.resources.read_text('cpb.resources', 'cekitImage.yaml.j2')
-    try: 
-      template = jinja2.Template(cekitImageJ2)
-      fileContents = template.render(imageDescs[anImageKey]) 
-      with open(os.path.join(imageDir, "image.yaml"), 'w') as outFile :
-        outFile.write(fileContents)
-    except Exception as err:
-      logging.error("Could not render the Jinja2 template [{}]".format(fileName))
-      logging.error(err)
-
-    imageName = imageDescs[anImageKey]['imageName']
-    imageNameLower = imageName.lower()
-    imageVersion = imageDescs[anImageKey]['version']
-    click.echo("\nChecking if the {} image exists".format(imageName))
-    if ((os.system("podman image exists {}".format(imageNameLower)) == 0) or
-      (os.system("podman image exists {}:{}".format(imageNameLower, imageVersion)) == 0)) :
-      if push and 'registry' in config['cpf'] :
-        pushToRegistry(imageName, config['cpf']['registry'])
-        continue
-      else:
-        if not overwrite :
-          click.echo("The {} image already exists and won't be overwritten.".format(imageName))
-          click.echo("  use the --overwrite option to overwrite this image.")
-          continue
-        else:
-          click.echo("Removing the {} image".format(imageName))
-          os.system("podman image rm {}".format(imageNameLower))
-          time.sleep(1)
-          click.echo("Removing the {}:{} image".format(imageName, imageVersion))
-          os.system("podman image rm {}:{}".format(imageNameLower, imageVersion))
-
-    try:
-      os.chdir(imageDir)
-      click.echo("----------------------------------------------------------")
-      click.echo("Using CEKit to build the {} image".format(anImageKey))
-      click.echo("in the {} directory".format(imageDir))
-      click.echo("")
-      os.system("../cpb-cekit build podman")
-      click.echo("----------------------------------------------------------")
-    except Exception as err :
-      logging.error("Could not build {} image using CEKit".format(anImageKey))
-      logging.error(err)
-
-    if push and 'registry' in config['cpf'] :
-      pushToRegistry(imageName, config['cpf']['registry'])
+    buildAnImage(anImageKey, imageDescs, config, overwrite, push)

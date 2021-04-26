@@ -47,6 +47,9 @@ defaultPodDefaults = {
     'natServer',
     'syncThingServer'
   ],
+  'baseImages'            : [
+    'cpLuaLuvNatsWebLitBuild-apk'
+  ],
   'maxLoadPerCPU'         : 2
 }
 

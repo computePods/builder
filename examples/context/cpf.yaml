@@ -48,6 +48,9 @@ podDefaults:
   images: 
     - context
 #
+#  baseImages:
+#    - aBaseImageForSomeOtherImage
+#
 # Now we specify the compute pods host names as well as any non-standard 
 # ports....
 #
@@ -89,7 +92,7 @@ cekitImageDescriptions:
     version: 1.0
     modules:
       - context
-
+  
 # Now we provide the (private) central OCI registry to use to push/pull 
 # images. 
 #

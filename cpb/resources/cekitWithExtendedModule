@@ -18,7 +18,8 @@ from cekit.cli import cli
 # allow a 'buildModule' entry 
 #
 from cekit.descriptor.module import overrides_schema
-overrides_schema['map']['buildModule'] = { 'type': 'any' }
+overrides_schema['map']['buildModule']    = { 'type': 'any' }
+overrides_schema['map']['artifactImages'] = { 'type': 'any' }
 
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])

@@ -22,37 +22,17 @@ packages:
 artifacts:
   # The binary lua modules built in the builder image
   - name: luaLibs
-    image: builder
+    image: cpLuaLuvNatsWebLitBuild-apt-get
     path: /root/luaLibs.tar
     target: luaLibs.tar
-
-  # The PURE lua modules (as tar files)
-  - name: luaUUID
-    #see: https://github.com/Tieske/uuid
-    url: https://api.github.com/repos/Tieske/uuid/tarball/75f8428
-    target: luaUUID.tar.gz
-
-  - name: luaNATS
-    #see: https://github.com/DawnAngel/lua-nats
-    url: https://api.github.com/repos/DawnAngel/lua-nats/tarball/980da7a
-    target: luaNATS.tar.gz
-
-  - name: luaYAML
-    #see: https://github.com/exosite/lua-yaml
-    url: https://api.github.com/repos/exosite/lua-yaml/tarball/009b129
-    target: luaYAML.tar.gz
-
-  - name: luaPPrint
-    #see: https://github.com/jagt/pprint.lua
-    url: https://api.github.com/repos/jagt/pprint.lua/tarball/1848a3e
-    target: luaPPrint.tar.gz
 
 run:
   cmd:
     - sleep
     - infinity
 
-# Tell cpb that we have a two stage build which requires the
-# cpChefBuild-apt-get module
+# Tell cpb that we have a multi stage build which requires the
+# cpLuaLuvNatsWebLitBuild-apt-get image
 #
-buildModule: cpChefBuild-apt-get
+artifactImages:
+ - cpLuaLuvNatsWebLitBuild-apt-get

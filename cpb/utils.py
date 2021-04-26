@@ -74,6 +74,7 @@ def mergePodDefaults(eData, podDefaults) :
   appendListDefaults(eData, 'secrets',       podDefaults)
   setDefault(        eData, 'maxLoadPerCPU', podDefaults['maxLoadPerCPU'])
   appendListDefaults(eData, 'images',        podDefaults)
+  appendListDefaults(eData, 'baseImages',    podDefaults)
 
 def mergeCekitImageDescriptions(iData, imageDefaults) :
   setDefault(      iData, 'curDir', os.path.abspath(os.getcwd()))

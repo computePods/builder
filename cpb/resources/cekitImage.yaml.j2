@@ -1,5 +1,18 @@
 # This CEKit description builds a computePods image for {{ imageName }}
 
+{% if artifactImages is defined %}
+{%   for anArtifactImage in artifactImages %}
+# An artifact image
+#
+- name: "{{ anArtifactImage }}"
+  description: "reference the {{ anArtifactImage }} to use an artifact"
+  version: "{{ version }}"
+
+  from: "{{ anArtifactImage | lower }}"
+
+{%   endfor %}
+{% endif %}
+
 {% if buildModules is defined %}
 # Build stage
 #

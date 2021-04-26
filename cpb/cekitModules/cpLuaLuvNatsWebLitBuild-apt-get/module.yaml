@@ -6,24 +6,24 @@
 
 schema_version: 1
 
-name: cpMajorDomoBuild
+name: cpLuaLuvNatsWebLitBuild-apt-get
 version: 1.0
-description: Builds the computePod MajorDomo coordination service
-from: alpine
+description: Builds the Debian version of Lua, Luv, Luv-Nats, and WebLit base image
+from: debian:stable-slim
 
 execute:
-  - script: buildCPMajorDomo.sh
+  - script: buildCPLuaLuvNatsWebLit.sh
 
 packages:
-  manager: apk
+  manager: apt-get
   install:
     - git
     - gcc
     - make
     - cmake
-    - musl-dev
-    - pkgconf-dev
-    - openssl-dev
+    - libc6-dev
+    - pkgconf
+    - libssl-dev
     - wget
     - ca-certificates
 
