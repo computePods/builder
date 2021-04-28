@@ -20,19 +20,16 @@ packages:
     - libssl1.1
 
 artifacts:
-  # The binary lua modules built in the builder image
-  - name: luaLibs
-    image: cpLuaLuvNatsWebLitBuild-apt-get
-    path: /root/luaLibs.tar
-    target: luaLibs.tar
+  - name: cpChef
+    # see: https://github.com/computePods/computePodChef
+    url: https://api.github.com/repos/computePods/computePodChef/tarball/main
+    target: cpChef.tar.gz
 
 run:
   cmd:
     - sleep
     - infinity
 
-# Tell cpb that we have a multi stage build which requires the
-# cpLuaLuvNatsWebLitBuild-apt-get image
-#
-artifactImages:
- - cpLuaLuvNatsWebLitBuild-apt-get
+modules:
+  install:
+    - name: cpPyNatsFastAPI-apt-get

@@ -33,6 +33,7 @@ defaultPodDefaults = {
   'commonsBaseDir'        : os.path.join("$HOME", "commons"),
   'hosts'                 : [],
   'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
+    'majorDomo'           : '8000:8000',
     'natsMsgs'            : '4222:4222',
     #'natsRouting'        : '6222:6222',
     #'natsMonitor'        : '8222:8222',
@@ -44,12 +45,10 @@ defaultPodDefaults = {
   'secrets'               : [],
   'images'                : [
     'majorDomoServer',
-    'natServer',
+#    'natServer',      # now part of the majorDomoServer
     'syncThingServer'
   ],
-  'baseImages'            : [
-    'cpLuaLuvNatsWebLitBuild-apk'
-  ],
+  'baseImages'            : [],
   'maxLoadPerCPU'         : 2
 }
 

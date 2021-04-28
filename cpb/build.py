@@ -29,21 +29,22 @@ defaultCekitImageDescriptions = {
     'basedOn'         : 'alpine',
     'buildBasedOn'    : 'alpine',
     'description'     : 'The ComputePods MajorDomo coordination service',
-    'modules'         : [ 
+    'modules'         : [
+      'natsServer',
       'cpMajorDomoServer'
     ],
     'packagesManager' : 'apk',
   },
-  'natServer'         : {
-    'version'         : '1.0',
-    'basedOn'         : 'alpine',
-    'buildBasedOn'    : 'alpine',
-    'description'     : 'The NATS messaging back-plane',
-    'modules'         : [ 
-      'natServer'
-    ],
-    'packagesManager' : 'apk',
-  },
+#  'natsServer'         : {
+#    'version'         : '1.0',
+#    'basedOn'         : 'alpine',
+#    'buildBasedOn'    : 'alpine',
+#    'description'     : 'The NATS messaging back-plane',
+#    'modules'         : [ 
+#      'natServer'
+#    ],
+#    'packagesManager' : 'apk',
+#  },
   'syncThingServer'   : {
     'version'         : '1.0',
     'basedOn'         : 'alpine',
@@ -54,25 +55,21 @@ defaultCekitImageDescriptions = {
     ],
     'packagesManager' : 'apk',
   },
-  'cpLuaLuvNatsWebLitBuild-apk' : {
+  'cpPyNatsFastAPI-apk' : {
     'version'         : '1.0',
     'basedOn'         : 'alpine',
     'buildBasedOn'    : 'alpine',
     'packagesManager' : 'apk',
-    'description'     : 'An Alpine Base image containing Lua, Luv, Luv-NATS and WebLit',
-    'modules'         : [
-      'cpLuaLuvNatsWebLitBuild-apk'
-    ]
+    'description'     : 'An Alpine module which installs Python asyncio-Nats, and FastAPI',
+    'modules'         : []
   },
-  'cpLuaLuvNatsWebLitBuild-apt-get' : {
+  'cpPyNatsFastAPI-apt-get' : {
     'version'         : '1.0',
     'basedOn'         : 'debian:stable-slim',
     'buildBasedOn'    : 'debian:stable-slim',
     'packagesManager' : 'apt-get',
-    'description'     : 'A Debian Base image containing Lua, Luv, Luv-NATS and WebLit',
-    'modules'         : [
-      'cpLuaLuvNatsWebLitBuild-apt-get'
-    ]
+    'description'     : 'A Debian module which installs Python asyncio-Nats, and FastAPI',
+    'modules'         : []
   }
 }
 
@@ -185,8 +182,6 @@ def normalizeConfig(config) :
       setDefault(anImageDesc, 'name',      anImageName)
       setDefault(anImageDesc, 'imageName', "{}-{}".format(config['federationName'], anImageName))
       anImageDesc['modules'].insert(len(defaultImageDesc['modules']), 'cpChef-{}'.format(anImageDesc['packagesManager']))
-      # Now check if we are going to use a non-apk cpChef (and so need a non-apk cpLuaLuvNatsWebLit)
-      baseImages['cpLuaLuvNatsWebLitBuild-{}'.format(anImageDesc['packagesManager'])] = True
   #
   # Add in the default image definitions (defined above)
   #

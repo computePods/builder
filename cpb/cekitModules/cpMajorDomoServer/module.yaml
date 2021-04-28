@@ -9,7 +9,7 @@ schema_version: 1
 name: cpMajorDomoServer
 version: 1.0
 description: Installs the computePod MajorDomo coordination service
-from: cpLuaLuvNatsWebLit
+from: alpine
 
 execute:
   - script: installCPMajorDomo.sh
@@ -17,22 +17,11 @@ execute:
 packages:
   manager: apk
   install:
-#    - ruby-dev
-#    - openssl-dev
-#    - make
-#    - gcc
-#    - g++
-#    - python3
- #   - py3-pip
+    - python3
+    - py3-pip
     - openssl
 
 artifacts:
-    # The binary lua modules built in the builder image
-  - name: luaLibs
-    image: cpLuaLuvNatsWebLitBuild-apk
-    path: /root/luaLibs.tar
-    target: luaLibs.tar
-
   - name: cpMajorDomo
     # see: https://github.com/computePods/computePodMajorDomo
     url: https://api.github.com/repos/computePods/computePodMajorDomo/tarball/main
@@ -43,8 +32,6 @@ run:
     - sleep
     - infinity
 
-# Tell cpb that we have a multi stage build which requires the
-# cpLuaLuvNatsWebLitBuild-apk image
-#
-artifactImages:
- - cpLuaLuvNatsWebLitBuild-apk
+modules:
+  install:
+    - name: cpPyNatsFastAPI-apk

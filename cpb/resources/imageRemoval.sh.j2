@@ -6,6 +6,11 @@
 # Remove the {{ anImage }} image
 #
 if podman image exists {{ imageLocal[anImage] }} ; then
-  podman image rm {{ imageLocal[anImage] }}
+  podman image list -n -f reference={{ imageLocal[anImage] }} \
+    | cut -d ' ' -f 1,3 \
+    | tr -s ' ' ':' \
+    | xargs -I{} podman image rm {}
 fi
 {% endfor %}
+
+

@@ -20,19 +20,17 @@ packages:
     - openssl
 
 artifacts:
-  # The binary lua modules built in the builder image
-  - name: luaLibs
-    image: cpLuaLuvNatsWebLitBuild-apk
-    path: /root/luaLibs.tar
-    target: luaLibs.tar
+  - name: cpChef
+    # see: https://github.com/computePods/computePodChef
+    url: https://api.github.com/repos/computePods/computePodChef/tarball/main
+    target: cpChef.tar.gz
+
 
 run:
   cmd:
     - sleep
     - infinity
 
-# Tell cpb that we have a multi stage build which requires the
-# cpLuaLuvNatsWebLitBuild-apk image
-#
-artifactImages:
- - cpLuaLuvNatsWebLitBuild-apk
+modules:
+  install:
+    - name: cpPyNatsFastAPI-apk

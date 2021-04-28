@@ -7,7 +7,7 @@
 
 schema_version: 1
 
-name: natServer
+name: natsServer
 version: 1.0
 description: Installs the NATS messaging service
 from: alpine
@@ -17,9 +17,3 @@ execute:
 
 packages:
   manager: apk
-  
-run:
-  cmd:
-    - nats-server
-    - '--log'
-    - '/tmp/nats.log'
