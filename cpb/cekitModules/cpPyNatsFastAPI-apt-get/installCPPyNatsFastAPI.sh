@@ -8,6 +8,8 @@ echo "----------------------------------------------------------------------"
 echo ""
 
 pip3 install setuptools wheel
+pip3 install networkx
+pip3 install pyyaml
 pip3 install aiofiles
 pip3 install asyncio-nats-client
 pip3 install fastapi

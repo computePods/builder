@@ -52,7 +52,8 @@ podman container create \
 {%-   for aHost in hosts %}
   --add-host={{ aHost }} \
 {%-   endfor %}
-{%- endif -%}
+{%- endif %}
+  --env=CONTAINER_NAME={{ anImage }} \
 {%- if envs.keys() | length -%}
 {%-   for envKey, envValue in envs.items() %}
   --env={{ envKey }}={{ envValue }} \
