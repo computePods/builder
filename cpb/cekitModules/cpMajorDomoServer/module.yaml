@@ -17,15 +17,24 @@ execute:
 packages:
   manager: apk
   install:
+    # production requirements
     - python3
     - py3-pip
     - openssl
+    # development requirements
+    - nodejs-dev
+    - npm
 
 artifacts:
   - name: cpMajorDomo
     # see: https://github.com/computePods/computePodMajorDomo
     url: https://api.github.com/repos/computePods/computePodMajorDomo/tarball/main
     target: cpMajorDomo.tar.gz
+
+  - name: cpMajorDomoUI
+    # see: https://github.com/computePods/computePodMajorDomoUI
+    url: https://api.github.com/repos/computePods/computePodMajorDomoUI/tarball/main
+    target: cpMajorDomoUI.tar.gz
 
 run:
   cmd:

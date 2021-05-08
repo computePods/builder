@@ -12,8 +12,8 @@ echo ""
 # see: https://github.com/computePods/computePodMajorDomo
 #
 cd
-mkdir -p cpMajorDomo
-tar xvf /tmp/artifacts/cpMajorDomo.tar.gz --directory cpMajorDomo --strip-components=1
+#mkdir -p cpMajorDomoUI
+#tar xvf /tmp/artifacts/cpMajorDomo.tar.gz --directory cpMajorDomo --strip-components=1
 #cp -r ${1}/${2} /usr/local/share/lua/5.4/${3}
 #unpackArtifact cpMajorDomo cpMajorDomo
 
