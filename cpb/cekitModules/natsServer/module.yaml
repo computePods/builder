@@ -20,6 +20,7 @@ run:
     - nats-server
 #    - --config
 #    - /etc/nats/config.conf
+    - --trace
     - --log
     - /tmp/nats.log
 
