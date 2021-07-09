@@ -1,4 +1,4 @@
-personal_ws-1.1 en 18 
+personal_ws-1.1 en 20 
 Cekit
 ComputePod
 ComputePods
@@ -8,6 +8,8 @@ NATS
 OCI
 PDM
 Podman
+YAML
+cekitModule
 containerizable
 intra
 odcs

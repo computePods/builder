@@ -1,0 +1,19 @@
+# This YAML file collects all of the version information required to
+# configure and build the various ComputePod pods.
+
+natsServer:
+  version: "2.3.2"
+  sha256:
+    arm64 : "423abad5e8af572986c5f730f204fb35d205e75e619b849ecc38e63f4869a20c"
+    arm6  : "46cfcadd45860b98481a428654270188bddd7a895fe3be69e3aaac7c880c8d23"
+    arm7  : "3be52d9207719a990623c2d27bf2eadb432e13a472ca0e9048c1225528f0c3db"
+    amd64 : "e8a0d264ec404a89fd91a520312cc72fcebda6b4a1acb14ae37b51682c28d29c"
+    i386  : "aaafc76dcb28b26d3a8e5b1f23cbe00b5e31565f5371b51ba8793feb348c8ce2"
+#  version: "2.2.1"
+#  sha256:
+#    arm64 : "0123d924907282265190258662edf8ad4351055083b5040e3bdf59117bd1c51c"
+#    arm6  : "da719b07fd57137f85bfa6cffc7d00841a9c1fb4cdf7ca9a537bfc3f99b71f36"
+#    arm7  : "cf6e8d9a9cc5d05f7320fb4be8fc9239cb87b91c6600a61ce7a2fb63e2f29f5a"
+#    amd64 : "70cb40d78b82ea6c0ca926c31ef98d2e1c885cfe2f73f34883e4ca448366c2dd"
+#    i386  : "da54d129f8a52c048ded61e3b62e946037a9464d02cf818e568bbf1e385ce6be"
+

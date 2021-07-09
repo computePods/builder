@@ -43,16 +43,6 @@ defaultCekitImageDescriptions = {
     ],
     'packagesManager' : 'apk',
   },
-#  'syncThingServer'   : {
-#    'version'         : '1.0',
-#    'basedOn'         : 'alpine',
-#    'buildBasedOn'    : 'docker.io/library/golang:alpine',
-#    'description'     : 'The SyncThing file syncronization back-plane',
-#    'modules'         : [
-#      'syncThingServer'
-#    ],
-#    'packagesManager' : 'apk',
-#  },
   'cpPyNatsFastAPI-apk' : {
     'version'         : '1.0',
     'basedOn'         : 'alpine',
@@ -75,9 +65,21 @@ defaultCekitImageDescriptions = {
 # some helper methods
 
 def copyCekitModulesFiles(config) :
+  #
+  # Load the version information
+  #
+  versionsYAML = importlib.resources.read_text(
+    "cpb.cekitModules", "versions.yaml"
+  )
+  versionValues = yaml.safe_load(versionsYAML)
+  #
+  # Now walk through each cekitModule, render any possible version
+  # information and copy the resulting resources
+  #
   for aCekitModule in importlib.resources.contents("cpb.cekitModules") :
-    if aCekitModule == '__init__.py' : continue
-    if aCekitModule == '__pycache__' : continue
+    if aCekitModule == '__init__.py'   : continue
+    if aCekitModule == '__pycache__'   : continue
+    if aCekitModule == 'versions.yaml' : continue
     cekitModuleDir = os.path.join(config['buildCekitModulesDir'], aCekitModule)
     os.makedirs(cekitModuleDir, exist_ok=True)
     for aFile in importlib.resources.contents("cpb.cekitModules.{}".format(aCekitModule)) :
@@ -86,10 +88,12 @@ def copyCekitModulesFiles(config) :
       logging.info("copying cekit module file: {}::{}".format(aCekitModule, aFile))
       fileContents = importlib.resources.read_text(
         "cpb.cekitModules.{}".format(aCekitModule), aFile )
+      fileTemplate = jinja2.Template(fileContents)
+      fileContents = fileTemplate.render(versions=versionValues)
       if aFile.endswith('.yaml') :
         fileYaml = yaml.safe_load(fileContents)
         #
-        # Remove our superset of the module.yaml format so that
+        # Remove our super-set of the module.yaml format so that
         # the standard Cekit will not have problems...
         #
         if 'buildModule'    in fileYaml : del fileYaml['buildModule']
