@@ -1,0 +1,29 @@
+[project]
+name = "computePodBuilder"
+version = "0.0.1"
+description = "A tool to build distributed peer-to-peer pods of compute modules for embarrassingly parallel problems using rootless Podman containers."
+authors = [
+    {name = "Stephen Gaito", email = "stephen@perceptisys.co.uk"},
+]
+dependencies = [
+    "click~=8.0",
+    "jinja2~=3.0",
+    "pyyaml~=5.4",
+    "py7zr~=0.16",
+]
+requires-python = ">=3.9"
+dynamic = ["classifiers"]
+license = {text = "Apache-2.0"}
+
+[project.urls]
+homepage = "https://github.com/computePods/computePodBuilder"
+
+[project.scripts]
+cpb = "cpb:cli"
+
+[build-system]
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"
+
+[tool]
+[tool.pdm]

@@ -37,7 +37,7 @@ defaultPodDefaults = {
     'natsMsgs'            : '4222:4222',
     #'natsRouting'        : '6222:6222',
     #'natsMonitor'        : '8222:8222',
-    'syncThing'           : '22000:22000', # both TCP and UDP
+    #'syncThing'           : '22000:22000', # both TCP and UDP
     #'syncThingDiscovery' : '21027:21027' # UDP
   },
   'volumes'               : [],
@@ -45,8 +45,8 @@ defaultPodDefaults = {
   'secrets'               : [],
   'images'                : [
     'majorDomoServer',
-#    'natServer',      # now part of the majorDomoServer
-    'syncThingServer'
+    'natsServer',
+#    'syncThingServer' # no longer used... we "roll our own"
   ],
   'baseImages'            : [],
   'maxLoadPerCPU'         : 2
@@ -55,25 +55,25 @@ defaultPodDefaults = {
 def loadConfig(configPath, verbose):
   # Start with the default configuration (above)
   config = defaultConfig
-  
+
   # Add the global configuration (if any)
   configPath = os.path.abspath(os.path.expanduser(configPath))
   try:
     globalConfigFile = open(configPath)
     globalConfig = yaml.safe_load(globalConfigFile)
     globalConfigFile.close()
-    if globalConfig is not None : 
+    if globalConfig is not None :
       config.update(globalConfig)
   except :
     if verbose is not None and verbose :
       print("INFO: no global configuration file found: [{}]".format(configPath))
 
-  # Now add in any local configuration 
+  # Now add in any local configuration
   try:
     localConfigFile = open(config['configYaml'], 'r')
     localConfig = yaml.safe_load(localConfigFile)
     localConfigFile.close()
-    if localConfig is not None : 
+    if localConfig is not None :
       config.update(localConfig)
   except :
     if verbose is not None and verbose :
@@ -108,7 +108,7 @@ def loadConfig(configPath, verbose):
     passwordsFile = open(config['passwordsYaml'], 'r')
     passwords = yaml.safe_load(passwordsFile)
     passwordsFile.close()
-    if passwords is not None : 
+    if passwords is not None :
       if 'ca' not in passwords :
         passwords['ca'] = {}
       if 'pods' not in passwords :
@@ -116,7 +116,7 @@ def loadConfig(configPath, verbose):
       if 'users' not in passwords :
         passwords['users'] = {}
       config['passwords'] = passwords
-  except IOError : 
+  except IOError :
     if verbose is not None and verbose :
       print("INFO: could not load the passwords file: [{}]".format(config['passwordsYaml']))
   except Exception as e :
@@ -124,16 +124,16 @@ def loadConfig(configPath, verbose):
       print("INFO: could not load the passwords file: [{}]".format(config['passwordsYaml']))
       print("\t" + "\n\t".join(str(e).split('\n')))
 
-  
+
   # Now add in the cpb.yaml (if it exists)
   config['cpf'] = {}
   try:
     cpfFile = open(config['cpfYaml'], 'r')
     cpf = yaml.safe_load(cpfFile)
     cpfFile.close()
-    if cpf is not None : 
+    if cpf is not None :
       config['cpf'] = cpf
-  except IOError : 
+  except IOError :
     if verbose is not None and verbose :
       print("INFO: could not load the cpf file: [{}]".format(config['cpfYaml']))
   except Exception as e :
@@ -155,7 +155,7 @@ def loadConfig(configPath, verbose):
   thePlatform['machine']   = platform.machine()
   thePlatform['processor'] = platform.processor()
   config['platform']       = thePlatform
-  
+
   # Setup logging
   if config['verbose'] :
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
@@ -183,9 +183,9 @@ def cli(ctx, config_file, verbose):
 
       create/destroy : used to manage the "commons" area as well as image and cpb descriptions,
 
-      build/remove : used to manage the podman images used by a running compute pod, 
+      build/remove : used to manage the podman images used by a running compute pod,
 
-      start/stop : used to manage the running compute pod on one machine, 
+      start/stop : used to manage the running compute pod on one machine,
 
     For details on all other configuration parameters type:
 

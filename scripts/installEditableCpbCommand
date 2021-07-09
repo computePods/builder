@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# This bash script uses the current working directory to create a simple
+# script to run the cpb command anywhere in a user's workspace.
+
+if (echo $PYTHONPATH | grep -i -q "pdm/pep582" ) ; then
+  echo PEP 582 enabled globally
+else
+  echo ""
+  echo "PEP 582 has NOT been enabled globally"
+  echo "To use this script you MUST follow the instructions in:"
+  echo "  https://pdm.fming.dev/#enable-pep-582-globally"
+  echo ""
+  echo "Editable cpb command NOT created"
+  echo ""
+  exit -1
+fi
+
+cmdScript=$(pdm info | grep Packages | cut -d' ' -f5)/bin/cpb
+
+cat << CMD_SCRIPT > $HOME/.local/bin/cpb
+#!/bin/sh
+
+# This shell script was created by the ComputePods pod builder
+#       './scripts/installEditableCploggerCommand'
+# script.
+
+exec $cmdScript \$@
+CMD_SCRIPT
+
+chmod a+x $HOME/.local/bin/cpb
+
+echo ""
+echo "Editable cpb command has been created"
+echo ""

@@ -5,7 +5,6 @@ import importlib.resources
 import jinja2
 import logging
 import os
-import pyzipper
 import random
 import stat
 import string
@@ -30,31 +29,30 @@ defaultCekitImageDescriptions = {
     'buildBasedOn'    : 'alpine',
     'description'     : 'The ComputePods MajorDomo coordination service',
     'modules'         : [
-      'natsServer',
       'cpMajorDomoServer'
     ],
     'packagesManager' : 'apk',
   },
-#  'natsServer'         : {
-#    'version'         : '1.0',
-#    'basedOn'         : 'alpine',
-#    'buildBasedOn'    : 'alpine',
-#    'description'     : 'The NATS messaging back-plane',
-#    'modules'         : [ 
-#      'natServer'
-#    ],
-#    'packagesManager' : 'apk',
-#  },
-  'syncThingServer'   : {
+  'natsServer'         : {
     'version'         : '1.0',
     'basedOn'         : 'alpine',
-    'buildBasedOn'    : 'docker.io/library/golang:alpine',
-    'description'     : 'The SyncThing file syncronization back-plane',
-    'modules'         : [ 
-      'syncThingServer'
+    'buildBasedOn'    : 'alpine',
+    'description'     : 'The NATS messaging back-plane',
+    'modules'         : [
+      'natsServer'
     ],
     'packagesManager' : 'apk',
   },
+#  'syncThingServer'   : {
+#    'version'         : '1.0',
+#    'basedOn'         : 'alpine',
+#    'buildBasedOn'    : 'docker.io/library/golang:alpine',
+#    'description'     : 'The SyncThing file syncronization back-plane',
+#    'modules'         : [
+#      'syncThingServer'
+#    ],
+#    'packagesManager' : 'apk',
+#  },
   'cpPyNatsFastAPI-apk' : {
     'version'         : '1.0',
     'basedOn'         : 'alpine',
@@ -88,6 +86,15 @@ def copyCekitModulesFiles(config) :
       logging.info("copying cekit module file: {}::{}".format(aCekitModule, aFile))
       fileContents = importlib.resources.read_text(
         "cpb.cekitModules.{}".format(aCekitModule), aFile )
+      if aFile.endswith('.yaml') :
+        fileYaml = yaml.safe_load(fileContents)
+        #
+        # Remove our superset of the module.yaml format so that
+        # the standard Cekit will not have problems...
+        #
+        if 'buildModule'    in fileYaml : del fileYaml['buildModule']
+        if 'artifactImages' in fileYaml : del fileYaml['artifactImages']
+        fileContents = yaml.dump(fileYaml)
       with open(os.path.join(cekitModuleDir, aFile), 'w') as outFile :
         outFile.write(fileContents)
 
@@ -97,21 +104,21 @@ def copyCekitModulesFiles(config) :
 def loadCekitModules(config) :
   config['modules'] = {}
   modules = config['modules']
-  
+
   for aRepo in config['repositories'] :
     for aModule in os.listdir(aRepo) :
       modules[aModule] = {}
-      
+
       cekitModulePath = os.path.join(aRepo, aModule, 'module.yaml')
       if os.path.isfile(cekitModulePath) :
-        try: 
+        try:
           with open(cekitModulePath, 'r') as moduleFile :
             logging.info("Loading {}::module.yaml\n      from {}".format(aModule, aRepo))
             modules[aModule] = yaml.safe_load(moduleFile)
         except Exception as e :
           logging.info("Could not load the {} YAML file.".format(cekitModulePath))
           print("  > " + "\n  >".join(str(e).split("\n")))
-          
+
 def normalizeConfig(config) :
 
   if 'cpf' not in config :
@@ -123,19 +130,19 @@ def normalizeConfig(config) :
     sys.exit(-1)
 
   config['federationName'] = config['cpf']['federationName']
-  
+
   setDefault(      config, 'buildBaseDir', os.path.join("~", ".local", "computePods"))
   sanitizeFilePath(config, 'buildBaseDir', None)
-  setDefault(      config, 'buildDir',     os.path.join(config['buildBaseDir'], config['federationName']) )  
-  setDefault(      config, 'cekitCmd',     os.path.join(config['buildDir'], 'cpb-cekit'))
+  setDefault(      config, 'buildDir',     os.path.join(config['buildBaseDir'], config['federationName']) )
+  setDefault(      config, 'cekitCmd',     'cekit')
 
   if 'computePods' not in config['cpf'] :
     logging.error("A compute pod federation name MUST have some computePods defined!")
-    sys.exit(-1)  
+    sys.exit(-1)
 
   if 'cekitImageDescriptions' not in config['cpf'] :
     logging.error("A compute pod federation name MUST have some cekit image descriptions defined!")
-    sys.exit(-1)  
+    sys.exit(-1)
 
   baseImages = {}
   baseImageList = config['cpf']['podDefaults']['baseImages']
@@ -159,8 +166,8 @@ def normalizeConfig(config) :
 
   defaultImageDesc = defaultCekitImageDescriptions['defaults']
   config['buildCekitModulesDir'] = os.path.join(config['buildDir'], 'cekitModules')
-  
-  imageDescs = config['cpf']['cekitImageDescriptions'] 
+
+  imageDescs = config['cpf']['cekitImageDescriptions']
   if 'defaults' not in imageDescs :
     imageDescs['defaults'] = {}
   mergeCekitImageDescriptions(imageDescs['defaults'], defaultImageDesc)
@@ -168,7 +175,7 @@ def normalizeConfig(config) :
   imageDefaults = imageDescs['defaults']
 
   copyCekitModulesFiles(config)
-  
+
   config['repositories'] = []
   for aRepo in imageDescs['defaults']['repositories'] :
     config['repositories'].append(aRepo)
@@ -201,6 +208,9 @@ def normalizeConfig(config) :
   #
   # Now add any required build modules
   #
+  #print("--------------------------------------------------------------")
+  #print(yaml.dump(config))
+  #print("--------------------------------------------------------------")
   modules = config['modules']
   for anImageName, anImageDesc in imageDescs.items() :
     if anImageName != 'defaults' :
@@ -211,7 +221,7 @@ def normalizeConfig(config) :
         if aModule not in modules :
           logging.error("No {} module found while defining the {} image".format(aModule, anImageName))
           sys.exit(-1)
-        
+
         if 'buildModule' in modules[aModule] :
           buildModules.append(modules[aModule]['buildModule'])
         if 'artifactImages' in modules[aModule] :
@@ -221,7 +231,7 @@ def normalizeConfig(config) :
         anImageDesc['buildModules'] = buildModules
       if artifactImages :
         anImageDesc['artifactImages'] = list(artifactImages.keys())
-        
+
   config['baseImagesToBuild'] = list(baseImages.keys())
   config['imagesToBuild'] = list(images.keys())
 
@@ -251,9 +261,9 @@ def buildAnImage(anImageKey, imageDescs, config, overwrite, push) :
   fileName = 'image.yaml'
   os.makedirs(imageDir, exist_ok=True)
   cekitImageJ2 = importlib.resources.read_text('cpb.resources', 'cekitImage.yaml.j2')
-  try: 
+  try:
     template = jinja2.Template(cekitImageJ2)
-    fileContents = template.render(imageDescs[anImageKey]) 
+    fileContents = template.render(imageDescs[anImageKey])
     with open(os.path.join(imageDir, "image.yaml"), 'w') as outFile :
       outFile.write(fileContents)
   except Exception as err:
@@ -287,7 +297,7 @@ def buildAnImage(anImageKey, imageDescs, config, overwrite, push) :
     click.echo("Using CEKit to build the {} image".format(anImageKey))
     click.echo("in the {} directory".format(imageDir))
     click.echo("")
-    os.system("../cpb-cekit build podman")
+    os.system("cekit build podman")
     click.echo("----------------------------------------------------------")
   except Exception as err :
     logging.error("Could not build {} image using CEKit".format(anImageKey))
@@ -296,12 +306,12 @@ def buildAnImage(anImageKey, imageDescs, config, overwrite, push) :
   if push and 'registry' in config['cpf'] :
     pushToRegistry(imageName, config['cpf']['registry'])
 
-      
+
 @click.command("build")
 @click.option("-P", "--push", default=False, is_flag=True,
   help="Push images to the federation registry.",
   prompt="Do you want to push images to the federation registry?")
-@click.option("-O", "--overwrite", default=False, is_flag=True, 
+@click.option("-O", "--overwrite", default=False, is_flag=True,
   help="Allow existing images to be overwritten.",
   prompt="Do you want to overwite images?")
 @click.pass_context
@@ -317,16 +327,6 @@ def build(ctx, overwrite, push):
     click.echo("You have asked to push images to a registry...")
     click.echo("  ... but you have not specified a registry in the cpf.yaml")
     click.echo("  we will NOT push images!")
-
-  # Make sure we have OUT monkey patched cekit script available    
-  cekitMonkeyPatch = importlib.resources.read_text(
-    "cpb.resources", "cekitWithExtendedModule" )
-  with open(config['cekitCmd'], 'w') as outFile :
-    outFile.write(cekitMonkeyPatch)
-  os.chmod(config['cekitCmd'], 
-    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
-    stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
-    stat.S_IROTH | stat.S_IXOTH)
 
   imageDescs = config['cpf']['cekitImageDescriptions']
 
