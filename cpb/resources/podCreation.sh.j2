@@ -1,7 +1,7 @@
 #!/bin/sh
-    
+
 # Pod creation script for the {{ podName }} pod
-    
+
 # Port mappings for this pod
 #
 {%- for aPortName, aPortDef in ports.items() %}
@@ -14,11 +14,11 @@ if podman pod exists {{ podName }} ; then
   echo Pod {{ podName }} already exists...
   exit 0
 fi
-  
+
 # Create the commons directory for this pod
 #
 mkdir -p {{ commonsDir }}
-  
+
 # Create the pod
 #
 podman pod create \
@@ -34,7 +34,7 @@ podman pod create \
   --publish={{ aPortDef }} \
 {%-   endfor -%}
 {%- endif %}
-  
+
 {% for anImage in images %}
 # Pull the {{ anImage }} image
 #
@@ -48,6 +48,8 @@ podman container create \
   --pod={{ podName }} \
   --name={{ podName }}-{{ anImage }} \
   --label=io.github.computepods.type=worker \
+  --init \
+  --restart=unless-stopped \
 {%- if hosts | length -%}
 {%-   for aHost in hosts %}
   --add-host={{ aHost }} \

@@ -15,5 +15,13 @@ from: alpine
 execute:
   - script: installNats.sh
 
+run:
+  cmd:
+    - nats-server
+#    - --config
+#    - /etc/nats/config.conf
+    - --log
+    - /tmp/nats.log
+
 packages:
   manager: apk
