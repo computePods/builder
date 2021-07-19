@@ -16,13 +16,14 @@ execute:
   - script: installNats.sh
 
 run:
-  cmd:
+  entrypoint:
     - nats-server
+  cmd:
 #    - --config
 #    - /etc/nats/config.conf
     - --trace
-    - --log
-    - /tmp/nats.log
+#    - --log
+#    - /tmp/nats.log
 
 packages:
   manager: apk
