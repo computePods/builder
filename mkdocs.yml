@@ -1,0 +1,17 @@
+site_name: ComputePods Builder
+
+site_url: https://computepods.github.io/computePodsBuilder/
+
+repo_url: https://github.com/computePods/computePodsBuilder
+
+plugins:
+  - search
+  - compute-pods
+  - awesome-pages
+  - mermaid2
+  - mkdocstrings:
+      watch:
+        - cpb
+
+theme:
+  name: material
