@@ -64,9 +64,6 @@ def mergeDictDefaults(eData, key, value) :
   eData[key] = newDict
 
 def mergePodDefaults(eData, podDefaults) :
-  setDefault(      eData, 'commonsBaseDir', os.path.join("$HOME", "commons"))
-  #sanitizeFilePath(eData, 'commonsBaseDir', None)
-  
   appendListDefaults(eData, 'hosts',         podDefaults)
   mergeDictDefaults( eData, 'ports',         podDefaults)
   appendListDefaults(eData, 'volumes',       podDefaults)

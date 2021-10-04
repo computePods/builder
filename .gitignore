@@ -1,5 +1,6 @@
 site
 .pdm.toml
+passwords.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

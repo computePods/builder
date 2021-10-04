@@ -30,7 +30,6 @@ defaultConfig = {
 }
 
 defaultPodDefaults = {
-  'commonsBaseDir'        : os.path.join("$HOME", "commons"),
   'hosts'                 : [],
   'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
     'majorDomo'           : '8000:8000',
@@ -181,7 +180,7 @@ def cli(ctx, config_file, verbose):
 
       config : used to view the configuration parameters as seen by cpb,
 
-      create/destroy : used to manage the "commons" area as well as image and cpb descriptions,
+      create/destroy : used to manage the image and cpb descriptions,
 
       build/remove : used to manage the podman images used by a running compute pod,
 

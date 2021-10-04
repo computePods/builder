@@ -3,5 +3,5 @@
 # Enter the {{ podName }}-{{ anImage }} container in the {{ podName }} pod
 
 if podman container exists {{ podName }}-{{ anImage }} ; then
-  podman exec -it --workdir=/commons {{ podName }}-{{ anImage }} /bin/sh
+  podman exec -it {{ podName }}-{{ anImage }} /bin/sh
 fi

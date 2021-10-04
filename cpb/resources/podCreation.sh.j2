@@ -15,10 +15,6 @@ if podman pod exists {{ podName }} ; then
   exit 0
 fi
 
-# Create the commons directory for this pod
-#
-mkdir -p {{ commonsDir }}
-
 # Create the pod
 #
 podman pod create \

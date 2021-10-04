@@ -1,6 +1,8 @@
-# This python3 click subcommand creates a new pde commons area
+# This python3 click subcommand creates the image and cpb descriptions
+# used by subsequence subcommands.
 
 import click
+import datetime
 import importlib.resources
 import jinja2
 import logging
@@ -15,12 +17,12 @@ import yaml
 
 from cpb.utils import *
 
-# We use openssl from the command line...
-# 
+# We use openssl and ssh-keygen from the command line...
+#
 # See: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
 # see: https://stackoverflow.com/questions/10175812/how-to-create-a-self-signed-certificate-with-openssl
-# 
-# Examples: 
+#
+# Examples:
 #   https://megamorf.gitlab.io/cheat-sheets/openssl/
 #   https://access.redhat.com/solutions/28965
 #   https://gist.github.com/thisismitch/bf52b0c1823da27ff353
@@ -29,7 +31,23 @@ from cpb.utils import *
 ############################################################################
 # Configuration
 
-def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
+def generateNewPassword(passwords, eData, config) :
+  passwordCharacters = string.ascii_letters + string.digits
+  randomPassword =  "".join(random.choice(passwordCharacters) for x in range(config['passwordLength']))
+  setDefault(passwords, eData['name'], randomPassword)
+  eData['password'] = passwords[eData['name']]
+
+def normalizeSshEntity(config, eData, workDirKey) :
+  setDefault(eData, 'name', config['federationName']+'-rsync')
+  timeNow = datetime.datetime.now().strftime("%Y.%m.%d-%H.%M.%S")
+  setDefault(eData, 'comment',  timeNow+'-'+eData['name'])
+  eData['workDir'] = config[workDirKey]
+  setDefault(eData, 'keyFile', eData['name'] + '-rsa')
+  sanitizeFilePath(eData, 'keyFile', eData['workDir'])
+  setDefault(eData, 'keySize', config['cpf']['keySize'])
+  generateNewPassword(config['passwords']['ca'], eData, config)
+
+def normalizeSslEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   passwords = config['passwords']['ca']
   if workDirKey == 'certificateAuthorityDir' :
     if 'federationName' not in eData :
@@ -63,7 +81,7 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
 
   setDefault(eData, 'keyFile', eData['name'] + '-key.pem')
   sanitizeFilePath(eData, 'keyFile', eData['workDir'])
-  
+
   setDefault(eData, '7zFile', eData['name'] + '.7z')
   sanitizeFilePath(eData, '7zFile', eData['workDir'])
 
@@ -76,17 +94,11 @@ def normalizeEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   setDefault(eData, 'federationName', caData['federationName'])
   setDefault(eData, 'serialNum',      caData['serialNum']+eNum)
 
-  passwordCharacters = string.ascii_letters + string.digits
-  randomPassword =  "".join(random.choice(passwordCharacters) for x in range(config['passwordLength']))
-  setDefault(passwords, eData['name'], randomPassword)
-  eData['password'] = passwords[eData['name']]
-  
+  generateNewPassword(passwords, eData, config)
+
   if podDefaults is not None :
     mergePodDefaults(eData, podDefaults)
     setDefault(eData, 'podName',  "{}-{}".format(eData['federationName'], eData['name']))
-    setDefault(eData, 'commonsDir', os.path.join(eData['commonsBaseDir'], 'cps', eData['podName']))
-    #sanitizeFilePath(eData, 'commonsDir', None)
-    eData['volumes'].append("{}:/commons".format(eData['commonsDir']))
     eData['imageLocal']  = {}
     eData['imageRemote'] = {}
     for anImage in eData['images'] :
@@ -132,19 +144,22 @@ def normalizeConfig(config) :
     caData['serialNum'] = int(time.time()) * 10000
 
   entityNum = 0
-  normalizeEntity(config, caData, entityNum, 'certificateAuthorityDir', caData, None)
+  normalizeSslEntity(config, caData, entityNum, 'certificateAuthorityDir', caData, None)
   entityNum += 1
 
   podDefaults = config['cpf']['podDefaults']
-  
+
   for aPod in config['cpf']['computePods'] :
-    normalizeEntity(config, aPod, entityNum, 'podsDir', caData, podDefaults)
+    normalizeSslEntity(config, aPod, entityNum, 'podsDir', caData, podDefaults)
     entityNum += 1
 
   for aUser in config['cpf']['users'] :
-    normalizeEntity(config, aUser, entityNum, 'usersDir', caData, None)
+    normalizeSslEntity(config, aUser, entityNum, 'usersDir', caData, None)
     entityNum += 1
-  
+
+  config['cpf']['rsync'] = { }
+  normalizeSshEntity(config, config['cpf']['rsync'], 'certificateAuthorityDir')
+
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
 
@@ -155,6 +170,19 @@ def createWorkDirFor(msg, eData) :
   if not os.path.isdir(eData['workDir']) :
     logging.info("creating the {} {} work directory".format(msg, eData['name']))
     os.makedirs(eData['workDir'], exist_ok=True)
+
+def createSshKeyFor(msg, eData) :
+  if os.path.isfile(eData['keyFile']) :
+    logging.info("{} {} key file exists -- not recreating".format(msg, eData['name']))
+  else :
+    cmd = "ssh-keygen -N {} -b {} -t rsa -C {} -f {}".format(
+       eData['password'], eData['keySize'], eData['comment'], eData['keyFile'])
+    click.echo("\ncreating the {} {} ssh key".format(msg, eData['name']))
+    click.echo("-------------------------------")
+    click.echo(cmd)
+    click.echo("----ssh-key-file-generation----")
+    os.system(cmd)
+    click.echo("----ssh-key-file-generation----")
 
 def createKeyFor(msg, eData) :
   if os.path.isfile(eData['keyFile']) :
@@ -169,8 +197,8 @@ def createKeyFor(msg, eData) :
     os.system(cmd)
     click.echo("----rsa-key-file-generation----")
 
-# Cerate a new "base" x509 Certificate (in the openSSL configuration) 
-# based upon the CA's configured certificate information. 
+# Cerate a new "base" x509 Certificate (in the openSSL configuration)
+# based upon the CA's configured certificate information.
 #
 #    SignatureAlgorithm: x509.SHA512WithRSA, (command line??)
 #    serialNumber (we use unixTimeStamp * 10000 + entityNumber)
@@ -184,11 +212,11 @@ def createKeyFor(msg, eData) :
 #    commonName
 #    emailAddresses
 #
-# Various fields specific to a particular certificate use will still need 
-# to be filed in by the CA, Nursery, or User certificate code 
+# Various fields specific to a particular certificate use will still need
+# to be filed in by the CA, Nursery, or User certificate code
 # respectively.
 #
-# CA: 
+# CA:
 #   basicConstraints = CA:TRUE
 #   keyUsage         =  nonRepudiation, digitalSignature, keyCertSign, cRLSign
 #   nsCertType       = sslCA, objCA
@@ -222,12 +250,12 @@ def createKeyFor(msg, eData) :
 #      x509.KeyUsageKeyAgreement |
 #      x509.KeyUsageDataEncipherment
 #
-# It is CRITICAL that we use DIFFERENT serial numbers for each of the: 
+# It is CRITICAL that we use DIFFERENT serial numbers for each of the:
 #  - Certificate Authority:  unixTimeStamp + 0,
 #  - Clien/Server:           unixTimeStamp + entityNum (pods first)
 #  - User:                   unixTimeStamp + entiryNum (users second)
-# certificates. We do this using the "serialNumModifier" parameter. (This 
-# assumes a maximum of 10,000 pods/users) 
+# certificates. We do this using the "serialNumModifier" parameter. (This
+# assumes a maximum of 10,000 pods/users)
 #
 
 def createCertFor(msg, certData, caData) :
@@ -252,7 +280,7 @@ def createCertFor(msg, certData, caData) :
       "  commonName             = {}".format(certData['name']),
     ]
 
-    # client/server (both pods and users)    
+    # client/server (both pods and users)
     configCert = [
       "[ the_cert ]",
       "  basicConstraints = CA:FALSE",
@@ -268,7 +296,7 @@ def createCertFor(msg, certData, caData) :
         "  keyUsage         = nonRepudiation, digitalSignature, keyCertSign, cRLSign",
         "  nsCertType       = sslCA, objCA",
       ]
-      
+
     configFile = open(certData['sslConfigFile'], "w")
     configFile.write("\n")
     configFile.write("\n".join(configReq))
@@ -301,7 +329,7 @@ def createCertFor(msg, certData, caData) :
   else :
     # self signed CA
     cmd = "openssl req -x509 -key {} -out {} -config {} -days {} -set_serial {}".format(
-      certData['keyFile'], certData['certFile'], 
+      certData['keyFile'], certData['certFile'],
       certData['sslConfigFile'], certData['days'],
       certData['serialNum'])
     if caData is not None :
@@ -324,13 +352,13 @@ def createCertFor(msg, certData, caData) :
 def saveShellScriptTemplate(templateName, theTemplate, templateValues, filePath) :
   try:
     template = jinja2.Template(theTemplate)
-    fileContents = template.render(templateValues) 
+    fileContents = template.render(templateValues)
     with open(filePath, 'w') as outFile :
       outFile.write(fileContents)
-    os.chmod(filePath, 
-      stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+    os.chmod(filePath,
+      stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR |
       stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
-      stat.S_IROTH | stat.S_IXOTH)    
+      stat.S_IROTH | stat.S_IXOTH)
   except Exception as err:
     logging.error("Could not render the Jinja2 template [{}]".format(templateName))
     logging.error(err)
@@ -340,7 +368,7 @@ def createPod(podData) :
   logging.info("creating the pod {} scripts".format(podData['podName']))
 
   scriptPaths = []
-  
+
   podData['podScriptFile'] = podData['name'] + '-create-pod.sh'
   sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
   scriptPaths.append(podData['podScriptFile'])
@@ -426,7 +454,7 @@ def create(ctx):
   """
   config = ctx.obj
   normalizeConfig(config)
-  
+
   click.echo("\n(re)Creating the {} federation".format(config['cpf']['federationName']))
 
   click.echo("\nWorking on certificate authority")
@@ -434,14 +462,16 @@ def create(ctx):
   createWorkDirFor("certificate authority", caData)
   createKeyFor("certificate authority", caData)
   createCertFor("certificate authority", caData, None)
-  
+
+  createSshKeyFor('rsync', config['cpf']['rsync'])
+
   for aPod in config['cpf']['computePods'] :
     click.echo("\nWorking on {} pod".format(aPod['name']))
     createWorkDirFor("pod", aPod)
     createKeyFor("pod", aPod)
     createCertFor("pod", aPod, caData)
     createPod(aPod)
-    
+
   for aUser in config['cpf']['users'] :
     click.echo("\nWorking on {} user".format(aUser['name']))
     createWorkDirFor("user", aUser)

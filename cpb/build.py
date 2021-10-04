@@ -1,4 +1,4 @@
-# This python3 click subcommand creates a new pde commons area
+# This python3 click subcommand creates the individual podman images
 
 import click
 import importlib.resources
