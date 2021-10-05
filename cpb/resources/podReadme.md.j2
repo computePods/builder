@@ -1,0 +1,78 @@
+# ComputePods configuration and scripts
+
+This directory contains the configuration and scripts required to run a
+ComputePod on the {{ podName }} machine.
+
+This directory has three subdirectories:
+
+1. **config** : The files in this subdirectory provide the configuration
+   required to run one or more containers in the ComputePod. This
+   subdirectory is mounted at the `/config` directory inside each
+   container in the ComputePod.
+
+2. **scripts** : The files in this subdirectory provide the scripts
+   required to create, manage, and finally remove the ComputerPod. This
+   directory is *not* mounted inside any of the containers in the
+   ComputePod.
+
+3. **commons** : This directory provides a common file system shared
+   between all of the containers in the ComputePod. This subdirectory is
+   mounted at the `/commons` directory inside each container in the
+   ComputePod.
+
+## Creating the ComputePod
+
+To create the ComputePod type the following in *this directory*:
+
+```
+  sh scripts/create-pod.sh
+```
+
+It is important that this script is run in *this directory*, since the
+`config` and `commons` directories are mounted *relative* to this
+directory.
+
+Note that this script only *creates* the ComputePod, it does not start it
+running.
+
+## Starting and Stopping the ComputePod
+
+To start the ComputePod type:
+
+```
+  sh scripts/start-pod.sh
+```
+
+To stop the ComputePod type:
+
+```
+  sh scripts/stop-pod.sh
+```
+
+## Entering a running container
+
+To enter a running container, to be able to explore and debug its
+function, type:
+
+```
+  sh scripts/enter-<<containerName>>.sh
+```
+
+Type `Ctrl-D` when finished.
+
+## Removing the ComputePod
+
+To remove the ComputePod, once it has been stopped (see above), type:
+
+```
+  sh scripts/remove-pod.sh
+```
+
+## Cleaning up the images
+
+Once the containers in the ComputePod have been removed, you can remove
+the underlying images by typing:
+
+```
+  sh scripts/remove-images.sh
+```

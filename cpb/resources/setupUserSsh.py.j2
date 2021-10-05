@@ -12,8 +12,8 @@ rrsyncUrl = "https://download.samba.org/pub/unpacked/rsync/support/rrsync"
 
 # The following two lines are (re)created by the ComputePods build tool
 #
-cpPublicRsyncComment = "stg_gg02-stg-rsa-2020-01-02"
-cpPublicRsyncKey     = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDVSeAQoBIJCogOA9HfX3jCOU3uIjfEjnZ1Q7he1r+G95zOdsUrpkO6Wrsm2ilE2BqSZkP+UQKZQRv4oYRuLzY2/TWEWW0kv8IogOUul7ElfiDhDfyE6apKzJKuR7ueSL2e+47lOuu68XEz4kwXgcr8S5YICE76z5AlF6F/CtKJy5dTZy1KsvkIorCSSAaLohXCD/mDHsAFSmooPSruq0lbuA4P4ywYT3AUDEDADxy5XMs19vRvjU/T5EE8eF/LDC4nUlAXJPC6Suecgvy4YQIUTj3gydPbBHN44YVFH6TD2TNXLEolLHFNWUfxKJcd76dMSv+5Zdo8tpfpRbmKpXcL stg_gg02-stg-rsa-2020-01-02"
+cpPublicRsyncTag = "{{ rsync['name'] }}"
+cpPublicRsyncKey = "{{ rsync['publicKey'] }}"
 
 #########################################################################
 
@@ -62,7 +62,7 @@ os.chmod(rrsyncCmd, 0o700)
 with open(rrsyncLog, "w") as logFile :
   logFile.write("")
 
-# Ge the current authorized_keys file contents (as an array of lines)
+# Get the current authorized_keys file contents (as an array of lines)
 #
 authKeys = None
 try :
@@ -75,12 +75,12 @@ if authKeys is None :
   print(f"Could not open the ssh authorized_keys file ({authKeyPath})")
   sys.exit(-1)
 
-# Copy all be the rrsync key to a new list of keys
+# Copy all the non-rrsync keys to a new list of keys
 #
 newAuthKeys = []
 for aKey in authKeys :
   aKey = aKey.strip()
-  if not aKey.endswith(cpPublicRsyncComment) :
+  if not aKey.endswith(cpPublicRsyncTag) :
     newAuthKeys.append(aKey)
 
 # Add the rrsync key to this new list of keys

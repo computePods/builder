@@ -184,6 +184,13 @@ def createSshKeyFor(msg, eData) :
     os.system(cmd)
     click.echo("----ssh-key-file-generation----")
 
+  eData['publicKey'] = "ssh-keygen-failure"
+  try :
+    with open(eData['keyFile']+'.pub', 'r') as publicKeyFile :
+      eData['publicKey'] = publicKeyFile.read().strip()
+  except :
+    pass
+
 def createKeyFor(msg, eData) :
   if os.path.isfile(eData['keyFile']) :
     logging.info("{} {} key file exists -- not recreating".format(msg, eData['name']))
@@ -349,10 +356,15 @@ def createCertFor(msg, certData, caData) :
     click.echo("----cert-file-generation----")
     click.echo("")
 
-def saveShellScriptTemplate(templateName, theTemplate, templateValues, filePath) :
+def renderTemplate(templateName, eData, renderedName, scriptPaths) :
+  eData['podScriptFile'] = renderedName
+  sanitizeFilePath(eData, 'podScriptFile', eData['workDir'])
+  filePath = eData['podScriptFile']
+  scriptPaths.append(filePath)
+  theTemplate = importlib.resources.read_text('cpb.resources', templateName)
   try:
     template = jinja2.Template(theTemplate)
-    fileContents = template.render(templateValues)
+    fileContents = template.render(eData)
     with open(filePath, 'w') as outFile :
       outFile.write(fileContents)
     os.chmod(filePath,
@@ -363,84 +375,89 @@ def saveShellScriptTemplate(templateName, theTemplate, templateValues, filePath)
     logging.error("Could not render the Jinja2 template [{}]".format(templateName))
     logging.error(err)
 
-def createPod(podData) :
+def createPod(podData, config) :
 
   logging.info("creating the pod {} scripts".format(podData['podName']))
 
   scriptPaths = []
-
-  podData['podScriptFile'] = podData['name'] + '-create-pod.sh'
-  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
-  scriptPaths.append(podData['podScriptFile'])
-  saveShellScriptTemplate(
-    'podCreation.sh.j2',
-    importlib.resources.read_text('cpb.resources', 'podCreation.sh.j2'),
-    podData,
-    podData['podScriptFile']
+  renderTemplate(
+    'podCreation.sh.j2', podData, 'create-pod.sh', scriptPaths
+  )
+  renderTemplate(
+    'podRemoval.sh.j2',  podData, 'remove-pod.sh', scriptPaths
+  )
+  renderTemplate(
+    'imageRemoval.sh.j2', podData, 'remove-images.sh', scriptPaths
+  )
+  renderTemplate(
+    'podStart.sh.j2', podData, 'start-pod.sh', scriptPaths
+  )
+  renderTemplate(
+    'podStop.sh.j2', podData, 'stop-pod.sh', scriptPaths
   )
 
-  podData['podScriptFile'] = podData['name'] + '-remove-pod.sh'
-  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
-  scriptPaths.append(podData['podScriptFile'])
-  saveShellScriptTemplate(
-    'podRemoval.sh.j2',
-    importlib.resources.read_text('cpb.resources', 'podRemoval.sh.j2'),
-    podData,
-    podData['podScriptFile']
+  basePaths = []
+  renderTemplate(
+    'podReadme.md.j2', podData, 'Readme.md', basePaths
   )
 
-  podData['podScriptFile'] = podData['name'] + '-remove-images.sh'
-  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
-  scriptPaths.append(podData['podScriptFile'])
-  saveShellScriptTemplate(
-    'imageRemoval.sh.j2',
-    importlib.resources.read_text('cpb.resources', 'imageRemoval.sh.j2'),
-    podData,
-    podData['podScriptFile']
+  commonsPaths = []
+  renderTemplate(
+    'podCommonsReadme.md.j2', podData, 'Readme-commons.md', commonsPaths
   )
 
-  podData['podScriptFile'] = podData['name'] + '-start-pod.sh'
-  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
-  scriptPaths.append(podData['podScriptFile'])
-  saveShellScriptTemplate(
-    'podStart.sh.j2',
-    importlib.resources.read_text('cpb.resources', 'podStart.sh.j2'),
-    podData,
-    podData['podScriptFile']
-  )
-
-  podData['podScriptFile'] = podData['name'] + '-stop-pod.sh'
-  sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
-  scriptPaths.append(podData['podScriptFile'])
-  saveShellScriptTemplate(
-    'podStop.sh.j2',
-    importlib.resources.read_text('cpb.resources', 'podStop.sh.j2'),
-    podData,
-    podData['podScriptFile']
-  )
-
-  theTemplate = importlib.resources.read_text('cpb.resources', 'enterContainer.sh.j2')
   for anImage in podData['images'] :
-    podData['podScriptFile'] = '{}-enter-{}.sh'.format(podData['name'], anImage)
-    sanitizeFilePath(podData, 'podScriptFile', podData['workDir'])
-    scriptPaths.append(podData['podScriptFile'])
-    saveShellScriptTemplate(
-      'enterContainer.sh.j2 ({})'.format(anImage),
-      theTemplate,
-      { 'podName' : podData['podName'], 'anImage' : anImage },
-      podData['podScriptFile']
+    podData['anImage'] = anImage
+    renderTemplate(
+      'enterContainer.sh.j2', podData,
+      'enter-{}.sh'.format(anImage), scriptPaths
     )
 
   # Then 7-zip up the directory...
   with py7zr.SevenZipFile(podData['7zFile'], 'w', password=podData['password']) as zf:
-    def saveFile(fileName) :
-      zf.write(fileName, arcname=os.path.join('podConfig', os.path.basename(fileName)))
-    saveFile(podData['sslConfigFile'])
-    saveFile(podData['csrFile'])
-    saveFile(podData['certFile'])
-    saveFile(podData['keyFile'])
+    def saveFile(subDir, fileName) :
+      zf.write(fileName, arcname=os.path.join('podConfig', subDir, os.path.basename(fileName)))
+    saveFile('config', podData['sslConfigFile'])
+    saveFile('config', podData['csrFile'])
+    saveFile('config', podData['certFile'])
+    saveFile('config', podData['keyFile'])
+    saveFile('config', config['cpf']['rsync']['keyFile'])
     for aPath in scriptPaths :
-      saveFile(aPath)
+      saveFile('scripts', aPath)
+    for aPath in basePaths :
+      saveFile("", aPath)
+    for aPath in commonsPaths :
+      saveFile('commons', aPath)
+
+def createUser(userData, config) :
+  logging.info("creating the user {} scripts".format(userData['name']))
+
+  scriptPaths = []
+  userData['rsync'] = config['cpf']['rsync']
+  renderTemplate(
+    'setupUserSsh.py.j2', userData, 'setup-ssh.py', scriptPaths
+  )
+  renderTemplate(
+    'turnOffUserSsh.py.j2', userData, 'turn-off-ssh.py', scriptPaths
+  )
+
+  basePaths = []
+  renderTemplate(
+    'userReadme.md.j2', userData, 'Readme.md', basePaths
+  )
+
+  # Then 7-zip up the directory...
+  with py7zr.SevenZipFile(userData['7zFile'], 'w', password=userData['password']) as zf:
+    def saveFile(subDir, fileName) :
+      zf.write(fileName, arcname=os.path.join('userConfig', subDir, os.path.basename(fileName)))
+    saveFile('config', userData['sslConfigFile'])
+    saveFile('config', userData['csrFile'])
+    saveFile('config', userData['certFile'])
+    saveFile('config', userData['keyFile'])
+    for aPath in scriptPaths :
+      saveFile('scripts', aPath)
+    for aPath in basePaths :
+      saveFile('', aPath)
 
 ############################################################################
 # Do the work...
@@ -470,13 +487,14 @@ def create(ctx):
     createWorkDirFor("pod", aPod)
     createKeyFor("pod", aPod)
     createCertFor("pod", aPod, caData)
-    createPod(aPod)
+    createPod(aPod, config)
 
   for aUser in config['cpf']['users'] :
     click.echo("\nWorking on {} user".format(aUser['name']))
     createWorkDirFor("user", aUser)
     createKeyFor("user", aUser)
     createCertFor("user", aUser, caData)
+    createUser(aUser, config)
 
   click.echo("")
 

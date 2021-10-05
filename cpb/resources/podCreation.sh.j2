@@ -61,7 +61,9 @@ podman container create \
 {%-   for aSecret in secrets %}
   --secret={{ secret }} \
 {%-   endfor %}
-{%- endif -%}
+{%- endif %}
+  --volume=./config:/config:ro \
+  --volume=./commons:/commons \
 {%- if volumes | length -%}
 {%-   for aVolumeDef in volumes %}
   --volume={{ aVolumeDef }} \
