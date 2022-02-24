@@ -41,6 +41,8 @@ configures and builds the required Podman container images.
 
 ## Installation
 
+You will need a Python which was compiled with liblzma-dev support.
+
 The build tool is a python command. As such it can be installed using
 [pip](https://pip.pypa.io/en/stable/),
 [pipx](https://pypa.github.io/pipx/), or, for a fully editable development

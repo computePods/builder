@@ -194,6 +194,7 @@ def cli(ctx, config_file, verbose):
   ctx.obj = loadConfig(config_file, verbose)
 
 cli.add_command(cpb.build.build)
+cli.add_command(cpb.build.images)
 cli.add_command(cpb.config.config)
 cli.add_command(cpb.create.create)
 #cli.add_command(cpb.destroy.destroy)

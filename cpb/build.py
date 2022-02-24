@@ -22,7 +22,7 @@ defaultCekitImageDescriptions = {
     'description'     : 'A computePod worker',
     'modules'         : [],
     'packagesManager' : 'apt-get',
-    'repositories'    : []
+    'repositories'    : [],
   },
   'majorDomoServer'   : {
     'basedOn'         : 'alpine',
@@ -341,3 +341,39 @@ def build(ctx, overwrite, push):
   # Now build the container images
   for anImageKey in config['imagesToBuild'] :
     buildAnImage(anImageKey, imageDescs, config, overwrite, push)
+
+def listSubModules(indent, aModule, modules) :
+  print("{}- {}".format(indent, aModule))
+  if aModule in modules :
+    if 'modules' in modules[aModule] :
+      if modules[aModule]['modules'] :
+        if 'install' in modules[aModule]['modules'] :
+          #print(yaml.dump(modules[aModule]['modules']['install']))
+          for aSubModule in modules[aModule]['modules']['install'] :
+            #print(yaml.dump(aSubModule))
+            listSubModules(indent+"  ", aSubModule['name'], modules)
+
+@click.command("images")
+@click.pass_context
+def images(ctx) :
+  """
+  lists the images that will be built by the build comment.
+  """
+
+  config = ctx.obj
+  normalizeConfig(config)
+
+  imageDescs = config['cpf']['cekitImageDescriptions']
+
+  for anImage, aDesc in imageDescs.items() :
+    if anImage == 'defaults' : continue
+    if not aDesc['modules']  : continue
+
+    print("{}:\t{}".format(aDesc['imageName'], aDesc['description']))
+    print("  basedOn: {}".format(aDesc['basedOn']))
+    print("  buildBasedOn: {}".format(aDesc['buildBasedOn']))
+    print("  modules:")
+    for aModule in aDesc['modules'] :
+      listSubModules("    ", aModule, config['modules'])
+    #print(yaml.dump(aDesc))
+#  print(yaml.dump(imageDescs))
