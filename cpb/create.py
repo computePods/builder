@@ -97,8 +97,8 @@ def normalizeSslEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
   generateNewPassword(passwords, eData, config)
 
   if podDefaults is not None :
-    mergePodDefaults(eData, podDefaults)
     setDefault(eData, 'podName',  "{}-{}".format(eData['federationName'], eData['name']))
+    mergePodDefaults(eData, podDefaults)
     eData['imageLocal']  = {}
     eData['imageRemote'] = {}
     for anImage in eData['images'] :
@@ -153,8 +153,26 @@ def normalizeConfig(config) :
     normalizeSslEntity(config, aPod, entityNum, 'podsDir', caData, podDefaults)
     entityNum += 1
 
+  natsDefaults = config['cpf']['natsDefaults']
+  natServer = config['cpf']['natServer']
+  natsPod = {
+    'host': natServer['host'],
+    'name': 'natsServer',
+    'podName' : "{}-natsServer".format(config['federationName']),
+    'images' : [ ]
+  }
+  config['cpf']['natsPod'] = natsPod
+  normalizeSslEntity(config, natsPod, entityNum, 'podsDir', caData, natsDefaults)
+  entityNum += 1
+
+  majorDomoDefaults = config['cpf']['majorDomoDefaults']
   for aUser in config['cpf']['users'] :
-    normalizeSslEntity(config, aUser, entityNum, 'usersDir', caData, None)
+    aUser['images'] = [ ]
+    #aUser['podName'] = "{}-{}-majorDomoServer".format(
+    #  config['federationName'],
+    #  aUser['name']
+    #)
+    normalizeSslEntity(config, aUser, entityNum, 'usersDir', caData, majorDomoDefaults)
     entityNum += 1
 
   config['cpf']['rsync'] = { }
@@ -489,11 +507,19 @@ def create(ctx):
     createCertFor("pod", aPod, caData)
     createPod(aPod, config)
 
+  aPod = config['cpf'] ['natsPod']
+  click.echo("\nWorking on {} pod".format(aPod['podName']))
+  createWorkDirFor("pod", aPod)
+  createKeyFor("pod", aPod)
+  createCertFor("pod", aPod, caData)
+  createPod(aPod, config)
+
   for aUser in config['cpf']['users'] :
     click.echo("\nWorking on {} user".format(aUser['name']))
     createWorkDirFor("user", aUser)
     createKeyFor("user", aUser)
     createCertFor("user", aUser, caData)
+    createPod(aUser, config)
     createUser(aUser, config)
 
   click.echo("")
@@ -502,3 +528,45 @@ def create(ctx):
   passwordsFile.write(yaml.dump(config['passwords']))
   passwordsFile.close()
   os.chmod(config['passwordsYaml'], stat.S_IRUSR | stat.S_IWUSR)
+
+@click.command("pods")
+@click.pass_context
+def pods(ctx) :
+  """
+  lists the pods that will be created by the create command.
+  """
+
+  config = ctx.obj
+  normalizeConfig(config)
+
+  print("{} federation pods:".format(config['cpf']['federationName']))
+  config['cpf']['computePods'].append(config['cpf']['natsPod'])
+  for aPod in config['cpf']['computePods'] :
+    print("  - {}:".format(aPod['podName']))
+    for anImage in aPod['images'] :
+      print("    - {}\t({})".format(
+        anImage,
+        aPod['imageLocal'][anImage]
+      ))
+    #print(yaml.dump(aPod))
+    #print("-----------------------------------------------------------")
+
+@click.command("users")
+@click.pass_context
+def users(ctx) :
+  """
+  lists the users that will be created by the create command.
+  """
+
+  config = ctx.obj
+  normalizeConfig(config)
+
+  print("{} federation users:".format(config['cpf']['federationName']))
+  for aUser in config['cpf']['users'] :
+    print("  - {}".format(aUser['name']))
+    for anImage in aUser['images'] :
+      print("    - {}\t({})".format(
+        anImage,
+        aUser['imageLocal'][anImage]
+      ))
+    #print(yaml.dump(aUser))

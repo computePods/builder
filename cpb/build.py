@@ -357,7 +357,7 @@ def listSubModules(indent, aModule, modules) :
 @click.pass_context
 def images(ctx) :
   """
-  lists the images that will be built by the build comment.
+  lists the images that will be built by the build command.
   """
 
   config = ctx.obj
@@ -371,7 +371,6 @@ def images(ctx) :
 
     print("{}:\t{}".format(aDesc['imageName'], aDesc['description']))
     print("  basedOn: {}".format(aDesc['basedOn']))
-    print("  buildBasedOn: {}".format(aDesc['buildBasedOn']))
     print("  modules:")
     for aModule in aDesc['modules'] :
       listSubModules("    ", aModule, config['modules'])

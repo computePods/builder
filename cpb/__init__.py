@@ -29,10 +29,10 @@ defaultConfig = {
   'verbose'                 : False
 }
 
-defaultPodDefaults = {
+defaultNatsDefaults = {
   'hosts'                 : [],
   'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
-    'majorDomo'           : '8000:8000',
+    #'majorDomo'           : '8000:8000',
     'natsMsgs'            : '4222:4222',
     #'natsRouting'        : '6222:6222',
     #'natsMonitor'        : '8222:8222',
@@ -43,8 +43,52 @@ defaultPodDefaults = {
   'envs'                  : {},
   'secrets'               : [],
   'images'                : [
-    'majorDomoServer',
+#    'majorDomoServer',
     'natsServer',
+#    'syncThingServer' # no longer used... we "roll our own"
+  ],
+  'baseImages'            : [],
+  'maxLoadPerCPU'         : 2
+}
+
+defaultMajorDomoDefaults = {
+  'hosts'                 : [],
+  'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
+    'majorDomo'           : '8000:8000',
+    #'natsMsgs'            : '4222:4222',
+    #'natsRouting'        : '6222:6222',
+    #'natsMonitor'        : '8222:8222',
+    #'syncThing'           : '22000:22000', # both TCP and UDP
+    #'syncThingDiscovery' : '21027:21027' # UDP
+  },
+  'volumes'               : [],
+  'envs'                  : {},
+  'secrets'               : [],
+  'images'                : [
+    'majorDomoServer',
+#    'natsServer',
+#    'syncThingServer' # no longer used... we "roll our own"
+  ],
+  'baseImages'            : [],
+  'maxLoadPerCPU'         : 2
+}
+
+defaultPodDefaults = {
+  'hosts'                 : [],
+  'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
+    #'majorDomo'           : '8000:8000',
+    #'natsMsgs'            : '4222:4222',
+    #'natsRouting'        : '6222:6222',
+    #'natsMonitor'        : '8222:8222',
+    #'syncThing'           : '22000:22000', # both TCP and UDP
+    #'syncThingDiscovery' : '21027:21027' # UDP
+  },
+  'volumes'               : [],
+  'envs'                  : {},
+  'secrets'               : [],
+  'images'                : [
+#    'majorDomoServer',
+#    'natsServer',
 #    'syncThingServer' # no longer used... we "roll our own"
   ],
   'baseImages'            : [],
@@ -143,7 +187,19 @@ def loadConfig(configPath, verbose):
   if 'podDefaults' in config['cpf'] :
     podDefaults = config['cpf']['podDefaults']
   mergePodDefaults(podDefaults, defaultPodDefaults)
-  config['cpf']['podDefaults'] = podDefaults
+  config['cpf']['podDefaults']  = podDefaults
+
+  natsDefaults = {}
+  if 'natsDefaults' in config['cpf'] :
+    natsDefaults = config['cpf']['natsDefaults']
+  mergePodDefaults(natsDefaults, defaultNatsDefaults)
+  config['cpf']['natsDefaults'] = natsDefaults
+
+  majorDomoDefaults = {}
+  if 'majorDomoDefaults' in config['cpf'] :
+    majorDomoDefaults = config['cpf']['majorDomoDefaults']
+  mergePodDefaults(majorDomoDefaults, defaultMajorDomoDefaults)
+  config['cpf']['majorDomoDefaults'] = majorDomoDefaults
 
   # Now add in platform parameters
   thePlatform = {}
@@ -197,6 +253,8 @@ cli.add_command(cpb.build.build)
 cli.add_command(cpb.build.images)
 cli.add_command(cpb.config.config)
 cli.add_command(cpb.create.create)
+cli.add_command(cpb.create.pods)
+cli.add_command(cpb.create.users)
 #cli.add_command(cpb.destroy.destroy)
 #cli.add_command(cpb.enter.enter)
 #cli.add_command(cpb.lists.images)
