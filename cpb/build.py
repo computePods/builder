@@ -159,8 +159,14 @@ def normalizeConfig(config) :
         baseImages[anImage] = True
 
   images = {}
-  imageList = config['cpf']['podDefaults']['images']
-  for anImage in imageList :
+  podImageList = config['cpf']['podDefaults']['images']
+  for anImage in podImageList :
+    images[anImage] = True
+  natsImageList = config['cpf']['natsDefaults']['images']
+  for anImage in natsImageList :
+    images[anImage] = True
+  majorDomoImageList = config['cpf']['majorDomoDefaults']['images']
+  for anImage in majorDomoImageList :
     images[anImage] = True
   computePods = config['cpf']['computePods']
   for aPod in computePods :
@@ -258,7 +264,7 @@ def pushToRegistry(imageName, registry) :
 
 def buildAnImage(anImageKey, imageDescs, config, overwrite, push) :
   if anImageKey not in imageDescs :
-    logging.error("No cekit image description provided for the {} image!".format(anImageKey))
+    click.echo("No cekit image description provided for the {} image!".format(anImageKey))
     sys.exit(-1)
 
   imageDir = os.path.join(config['buildDir'], anImageKey)
@@ -271,8 +277,8 @@ def buildAnImage(anImageKey, imageDescs, config, overwrite, push) :
     with open(os.path.join(imageDir, "image.yaml"), 'w') as outFile :
       outFile.write(fileContents)
   except Exception as err:
-    logging.error("Could not render the Jinja2 template [{}]".format(fileName))
-    logging.error(err)
+    click.echo("Could not render the Jinja2 template [{}]".format(fileName))
+    click.echo(err)
 
   imageName = imageDescs[anImageKey]['imageName']
   imageNameLower = imageName.lower()
@@ -300,7 +306,7 @@ def buildAnImage(anImageKey, imageDescs, config, overwrite, push) :
     click.echo("----------------------------------------------------------")
     click.echo("Using CEKit to build the {} image".format(anImageKey))
     click.echo("in the {} directory".format(imageDir))
-    click.echo("")
+    click.echo("----------------------------------------------------------")
     os.system("cekit build podman")
     click.echo("----------------------------------------------------------")
   except Exception as err :

@@ -1,4 +1,4 @@
-# This CEKit module describes how to install the computePods Chef tool on 
+# This CEKit module describes how to install the computePods Chef tool on
 # debian based distribution (any which uses apt-get to install packages)
 
 # This module:
@@ -18,6 +18,8 @@ packages:
   manager: apt-get
   install:
     - libssl1.1
+    # required since ComputePod Python Packages use git archives
+    - git
 
 artifacts:
   - name: cpChef

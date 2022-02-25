@@ -1,5 +1,5 @@
-# This CEKit module describes how to install the computePods MajorDomo 
-# tool in an Alpine container. 
+# This CEKit module describes how to install the computePods MajorDomo
+# tool in an Alpine container.
 
 # This module:
 # - assumes an Alpine (apk) based container,
@@ -21,6 +21,8 @@ packages:
     - python3
     - py3-pip
     - openssl
+    # required since ComputePod Python Packages use git archives
+    - git
     # development requirements
     - nodejs-dev
     - npm

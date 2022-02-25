@@ -1,5 +1,5 @@
-# This CEKit module describes how to install the computePods Chef tool in 
-# an Alpine container. 
+# This CEKit module describes how to install the computePods Chef tool in
+# an Alpine container.
 
 # This module:
 # - assumes an Alpine (apk) based container,
@@ -18,6 +18,8 @@ packages:
   manager: apk
   install:
     - openssl
+    # required since ComputePod Python Packages use git archives
+    - git
 
 artifacts:
   - name: cpChef
