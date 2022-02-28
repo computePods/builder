@@ -3,8 +3,8 @@
 # We start by giving a name to this federation of compute pods
 federationName: playGround
 
-# Now we specify the certificate key size... the larger you choose the more 
-# secure the communitcation will be... but it will take more time to 
+# Now we specify the certificate key size... the larger you choose the more
+# secure the communitcation will be... but it will take more time to
 # generate
 keySize: 4096
 
@@ -15,15 +15,15 @@ certificateAuthority:
   province: West Midlands
   locality: Coventry
   commonName: playGround CA
-  validFor: 
+  validFor:
     years: 10
-    months: 0 
+    months: 0
     days: 0
 
 # We now specify which machines will run a compute pod
 
-# We can start by specifying the standard defaults for any compute pod 
-# interface. 
+# We can start by specifying the standard defaults for any compute pod
+# interface.
 #
 # NOTE: any instance of "$HOME" in the "commons" path (below) will be
 #       replaced by the environment variable "HOME" from the machine/user
@@ -45,21 +45,21 @@ podDefaults:
 # (see: https://stackoverflow.com/a/14840102
 #   or: https://stackoverflow.com/a/55423170
 #  and: https://www.geeksforgeeks.org/python-os-getloadavg-method/  )
-  images: 
+  images:
     - context
 #
 #  baseImages:
 #    - aBaseImageForSomeOtherImage
 #
-# Now we specify the compute pods host names as well as any non-standard 
+# Now we specify the compute pods host names as well as any non-standard
 # ports....
 #
-# Any of the above pod defaults can be specified for a specific computePod 
+# Any of the above pod defaults can be specified for a specific computePod
 # and will override those defaults
 #
 # NOTE: The hosts names should be the name used by your (internal) network
 #
-# NOTE: If a given host has multiple names in your network, the host names 
+# NOTE: If a given host has multiple names in your network, the host names
 # can be a comma separated list of these names.
 #
 computePods:
@@ -86,15 +86,15 @@ cekitImageDescriptions:
     repositories:
       - ../cekitModules
   context:
-    basedOn: debian:stable-slim
+    basedOn: python:slim
     packagesManager: apt-get
     description: A ConTeXt typesetting worker
     version: 1.0
     modules:
       - context
-  
-# Now we provide the (private) central OCI registry to use to push/pull 
-# images. 
+
+# Now we provide the (private) central OCI registry to use to push/pull
+# images.
 #
 registry:
   host: oci-registry
@@ -102,14 +102,14 @@ registry:
 #  path: a/path
   isSecure: false
 #
-# NOTE: with `isSecure: false` you can use a local registry which has no 
-# TLS/SSL certificates or authorized users. This option is useful if you 
-# run a *temporary* registry which is running only while you build images 
-# and/or create your pods. (Access to the registry is ONLY needed during 
+# NOTE: with `isSecure: false` you can use a local registry which has no
+# TLS/SSL certificates or authorized users. This option is useful if you
+# run a *temporary* registry which is running only while you build images
+# and/or create your pods. (Access to the registry is ONLY needed during
 # these two times).
 #
-# ALTERNATIVELY you can run your own *secure* registry, for pdoman see the 
-# excellent tutorial: 
+# ALTERNATIVELY you can run your own *secure* registry, for pdoman see the
+# excellent tutorial:
 #
 #      https://www.redhat.com/sysadmin/simple-container-registry
 #

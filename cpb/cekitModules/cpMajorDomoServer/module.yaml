@@ -9,7 +9,7 @@ schema_version: 1
 name: cpMajorDomoServer
 version: 1.0
 description: Installs the computePod MajorDomo coordination service
-from: alpine
+from: python:alpine
 
 execute:
   - script: installCPMajorDomo.sh
@@ -18,8 +18,8 @@ packages:
   manager: apk
   install:
     # production requirements
-    - python3
-    - py3-pip
+    #- python3
+    #- py3-pip
     - openssl
     # required since ComputePod Python Packages use git archives
     - git

@@ -17,16 +17,16 @@ from cpb.utils import *
 defaultCekitImageDescriptions = {
   'defaults'          : {
     'version'         : '1.0',
-    'basedOn'         : 'debian:stable-slim',
-    'buildBasedOn'    : 'debian:stable-slim',
+    'basedOn'         : 'python:slim',
+    'buildBasedOn'    : 'python:slim',
     'description'     : 'A computePod worker',
     'modules'         : [],
     'packagesManager' : 'apt-get',
     'repositories'    : [],
   },
   'majorDomoServer'   : {
-    'basedOn'         : 'alpine',
-    'buildBasedOn'    : 'alpine',
+    'basedOn'         : 'python:alpine',
+    'buildBasedOn'    : 'python:alpine',
     'description'     : 'The ComputePods MajorDomo coordination service',
     'modules'         : [
       'cpMajorDomoServer'
@@ -45,16 +45,16 @@ defaultCekitImageDescriptions = {
   },
   'cpPyNatsFastAPI-apk' : {
     'version'         : '1.0',
-    'basedOn'         : 'alpine',
-    'buildBasedOn'    : 'alpine',
+    'basedOn'         : 'python:alpine',
+    'buildBasedOn'    : 'python:alpine',
     'packagesManager' : 'apk',
     'description'     : 'An Alpine module which installs Python asyncio-Nats, and FastAPI',
     'modules'         : []
   },
   'cpPyNatsFastAPI-apt-get' : {
     'version'         : '1.0',
-    'basedOn'         : 'debian:stable-slim',
-    'buildBasedOn'    : 'debian:stable-slim',
+    'basedOn'         : 'python:slim',
+    'buildBasedOn'    : 'python:slim',
     'packagesManager' : 'apt-get',
     'description'     : 'A Debian module which installs Python asyncio-Nats, and FastAPI',
     'modules'         : []

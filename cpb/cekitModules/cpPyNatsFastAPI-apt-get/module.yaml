@@ -1,5 +1,5 @@
-# This CEKit module describes how to build the computePods MajorDomo tool 
-# on Alpine. 
+# This CEKit module describes how to build the computePods MajorDomo tool
+# on Alpine.
 
 # This module:
 # - assumes an Alpine (apk) based container,
@@ -9,7 +9,7 @@ schema_version: 1
 name: cpPyNatsFastAPI-apt-get
 version: 1.0
 description: Installs the Debian version of Python asyncio-NATS and FastAPI
-from: debian:stable-slim
+from: python:slim
 
 execute:
   - script: installCPPyNatsFastAPI.sh
@@ -17,6 +17,6 @@ execute:
 packages:
   manager: apt-get
   install:
-    - python3
-    - python3-pip
+    #- python3
+    #- python3-pip
     - openssl

@@ -9,7 +9,7 @@ schema_version: 1
 name: cpChef-apk
 version: 1.0
 description: Installs the computePods Chef tool (alpine version)
-from: alpine
+from: python:alpine
 
 execute:
   - script: installCPChef.sh
