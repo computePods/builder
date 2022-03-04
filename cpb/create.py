@@ -111,6 +111,24 @@ def normalizeSslEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
         localImageName,
         config['cpf']['registry'])
 
+    oldVolumes = eData['volumes']
+    newVolumes = []
+    for aVolume in oldVolumes :
+      if aVolume.startswith('~') :
+        dirs = aVolume.split(':')
+        dirs[0] = os.path.abspath(os.path.expanduser(dirs[0]))
+        aVolume = ":".join(dirs)
+      newVolumes.append(aVolume)
+    eData['volumes'] = newVolumes
+
+    ports = eData['ports']
+    innerPorts = {}
+    for aKey, aValue in ports.items() :
+      innerPorts[aKey] = aValue.split(':')[-1]
+    eData['innerPorts'] = innerPorts
+
+    eData['natsServer'] = config['cpf']['natsServer']
+
 def normalizeConfig(config) :
 
   if 'cpf' not in config :
@@ -157,9 +175,9 @@ def normalizeConfig(config) :
     entityNum += 1
 
   natsDefaults = config['cpf']['natsDefaults']
-  natServer = config['cpf']['natServer']
+  natsServer = config['cpf']['natsServer']
   natsPod = {
-    'host': natServer['host'],
+    'host': natsServer['host'],
     'name': 'natsServer',
     'podName' : "{}-natsServer".format(config['federationName']),
     'images' : [ ]
@@ -411,7 +429,7 @@ def addRFile(templateName, renderedName, a7rDir) :
     'a7zDir'        : a7rDir
   }
 
-def createPod(podData, config) :
+def createPod(podData, config, extraRFiles) :
 
   logging.info("creating the pod {} scripts".format(podData['podName']))
 
@@ -423,6 +441,8 @@ def createPod(podData, config) :
   rFiles.append(addRFile('podStop.sh.j2',          'stop-pod.sh',       'scripts'))
   rFiles.append(addRFile('podReadme.md.j2',        'Readme.md',         ''       ))
   rFiles.append(addRFile('podCommonsReadme.md.j2', 'Readme-commons.md', 'commons'))
+  for anRFile in extraRFiles :
+    rFiles.append(anRFile)
 
   # render the known templates
   for anRFile in rFiles :
@@ -480,21 +500,33 @@ def create(ctx):
     createWorkDirFor("pod", aPod)
     createKeyFor("pod", aPod)
     createCertFor("pod", aPod, caData)
-    createPod(aPod, config)
+    createPod(aPod, config, [ addRFile(
+      'cpchefConfig.yaml.j2',
+      'cpchefConfig.yaml',
+      'config'
+    )])
 
   aPod = config['cpf'] ['natsPod']
   click.echo("\nWorking on {} pod".format(aPod['podName']))
   createWorkDirFor("pod", aPod)
   createKeyFor("pod", aPod)
   createCertFor("pod", aPod, caData)
-  createPod(aPod, config)
+  createPod(aPod, config, [ addRFile(
+    'natsConfig.conf.j2',
+    'natsConfig.conf',
+    'config'
+  )])
 
   for aUser in config['cpf']['users'] :
     click.echo("\nWorking on {} user".format(aUser['name']))
     createWorkDirFor("user", aUser)
     createKeyFor("user", aUser)
     createCertFor("user", aUser, caData)
-    createPod(aUser, config)
+    createPod(aUser, config,  [ addRFile(
+      'cpmdConfig.yaml.j2',
+      'cpmdConfig.yaml',
+      'config'
+    )])
 
   click.echo("")
 

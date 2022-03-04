@@ -1,0 +1,7 @@
+# This is the default Chef ComputePods configuration
+
+# (It is configured for a Chef running *inside* a podman container)
+
+natsServer:
+  host: {{ natsServer['host'] }}
+  port: {{ natsServer['port'] }}

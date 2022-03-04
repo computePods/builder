@@ -32,20 +32,15 @@ defaultConfig = {
 defaultNatsDefaults = {
   'hosts'                 : [],
   'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
-    #'majorDomo'           : '8000:8000',
     'natsMsgs'            : '4222:4222',
     #'natsRouting'        : '6222:6222',
     #'natsMonitor'        : '8222:8222',
-    #'syncThing'           : '22000:22000', # both TCP and UDP
-    #'syncThingDiscovery' : '21027:21027' # UDP
   },
   'volumes'               : [],
   'envs'                  : {},
   'secrets'               : [],
   'images'                : [
-#    'majorDomoServer',
     'natsServer',
-#    'syncThingServer' # no longer used... we "roll our own"
   ],
   'baseImages'            : [],
   'maxLoadPerCPU'         : 2
@@ -54,20 +49,13 @@ defaultNatsDefaults = {
 defaultMajorDomoDefaults = {
   'hosts'                 : [],
   'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
-    'majorDomo'           : '8000:8000',
-    #'natsMsgs'            : '4222:4222',
-    #'natsRouting'        : '6222:6222',
-    #'natsMonitor'        : '8222:8222',
-    #'syncThing'           : '22000:22000', # both TCP and UDP
-    #'syncThingDiscovery' : '21027:21027' # UDP
+    'majorDomo'           : '127.0.0.1:8000:8000', # exposed ONLY on the local host
   },
-  'volumes'               : [],
+  'volumes'               : [ '~/.local/cpmd:/cpmd' ],
   'envs'                  : {},
   'secrets'               : [],
   'images'                : [
     'majorDomoServer',
-#    'natsServer',
-#    'syncThingServer' # no longer used... we "roll our own"
   ],
   'baseImages'            : [],
   'maxLoadPerCPU'         : 2
@@ -76,21 +64,11 @@ defaultMajorDomoDefaults = {
 defaultPodDefaults = {
   'hosts'                 : [],
   'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
-    #'majorDomo'           : '8000:8000',
-    #'natsMsgs'            : '4222:4222',
-    #'natsRouting'        : '6222:6222',
-    #'natsMonitor'        : '8222:8222',
-    #'syncThing'           : '22000:22000', # both TCP and UDP
-    #'syncThingDiscovery' : '21027:21027' # UDP
   },
   'volumes'               : [],
   'envs'                  : {},
   'secrets'               : [],
-  'images'                : [
-#    'majorDomoServer',
-#    'natsServer',
-#    'syncThingServer' # no longer used... we "roll our own"
-  ],
+  'images'                : [],
   'baseImages'            : [],
   'maxLoadPerCPU'         : 2
 }

@@ -1,0 +1,17 @@
+# This is the default MajorDomo ComputePods configuration
+
+# (It is configured for a MajorDomo running *inside* a podman container)
+
+natsServer:
+  host: {{ natsServer['host'] }}
+  port: {{ natsServer['port'] }}
+
+{% if innerPorts['majorDomo'] %}
+
+webServer:
+  sockets:
+    - host: 127.0.0.1
+      port: {{ innerPorts['majorDomo'] }}
+    - path: /cpmd/server.socket
+
+{% endif %}
