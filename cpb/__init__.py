@@ -156,6 +156,8 @@ def loadConfig(configPath, verbose):
         passwords['ca'] = {}
       if 'pods' not in passwords :
         passwords['pods'] = {}
+      if 'nats' not in passwords :
+        passwords['nats'] = {}
       if 'users' not in passwords :
         passwords['users'] = {}
       config['passwords'] = passwords

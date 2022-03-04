@@ -61,6 +61,9 @@ def normalizeSslEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
       sys.exit(-1)
     passwords = config['passwords']['pods']
     eData['name'] = eData['host'].split(',')[0]
+  if workDirKey == 'natsDir' :
+    eData['name'] = 'nats'
+    passwords = config['passwords']['nats']
   if workDirKey == 'usersDir' :
     if 'name' not in eData :
       logging.error("All users MUST have a 'name' key")
@@ -162,7 +165,7 @@ def normalizeConfig(config) :
     'images' : [ ]
   }
   config['cpf']['natsPod'] = natsPod
-  normalizeSslEntity(config, natsPod, entityNum, 'podsDir', caData, natsDefaults)
+  normalizeSslEntity(config, natsPod, entityNum, 'natsDir', caData, natsDefaults)
   entityNum += 1
 
   majorDomoDefaults = config['cpf']['majorDomoDefaults']
@@ -193,8 +196,11 @@ def createSshKeyFor(msg, eData) :
   if os.path.isfile(eData['keyFile']) :
     logging.info("{} {} key file exists -- not recreating".format(msg, eData['name']))
   else :
-    cmd = "ssh-keygen -N {} -b {} -t rsa -C {} -f {}".format(
-       eData['password'], eData['keySize'], eData['comment'], eData['keyFile'])
+    #cmd = "ssh-keygen -N {} -b {} -t rsa -C {} -f {}".format(
+    #   eData['password'], eData['keySize'], eData['comment'], eData['keyFile'])
+    cmd = "ssh-keygen -N '' -b {} -t rsa -C {} -f {}".format(
+      eData['keySize'], eData['comment'], eData['keyFile']
+    )
     click.echo("\ncreating the {} {} ssh key".format(msg, eData['name']))
     click.echo("-------------------------------")
     click.echo(cmd)
@@ -214,7 +220,8 @@ def createKeyFor(msg, eData) :
     logging.info("{} {} key file exists -- not recreating".format(msg, eData['name']))
   else :
     cmd = "openssl genpkey -algorithm RSA -out {} -pkeyopt rsa_keygen_bits:{}".format(
-      eData['keyFile'], eData['keySize'])
+      eData['keyFile'], eData['keySize']
+    )
     click.echo("\ncreating the {} {} rsa key".format(msg, eData['name']))
     click.echo("-------------------------------")
     click.echo(cmd)
@@ -356,7 +363,8 @@ def createCertFor(msg, certData, caData) :
     cmd = "openssl req -x509 -key {} -out {} -config {} -days {} -set_serial {}".format(
       certData['keyFile'], certData['certFile'],
       certData['sslConfigFile'], certData['days'],
-      certData['serialNum'])
+      certData['serialNum']
+    )
     if caData is not None :
       # client/server Cert (using CSR created above)
       # see: https://gist.github.com/nordineb/4e8f9122f6962c33e56f02d0d5794b3d
@@ -364,7 +372,8 @@ def createCertFor(msg, certData, caData) :
       cmd = "openssl x509 -req -in {} -out {} -CA {} -CAkey {} -days {} -set_serial {}".format(
         certData['csrFile'], certData['certFile'],
         caData['certFile'], caData['keyFile'],
-        certData['days'], certData['serialNum'])
+        certData['days'], certData['serialNum']
+      )
 
     click.echo("\ncreating the {} {} certificate file".format(msg, certData['name']))
     click.echo("-------------------------------")
@@ -374,11 +383,13 @@ def createCertFor(msg, certData, caData) :
     click.echo("----cert-file-generation----")
     click.echo("")
 
-def renderTemplate(templateName, eData, renderedName, scriptPaths) :
+def renderTemplate(aRenderedFile, eData) :
+  templateName = aRenderedFile['templateName']
+  renderedName = aRenderedFile['renderedName']
   eData['podScriptFile'] = renderedName
   sanitizeFilePath(eData, 'podScriptFile', eData['workDir'])
   filePath = eData['podScriptFile']
-  scriptPaths.append(filePath)
+  aRenderedFile['filePath'] = filePath
   theTemplate = importlib.resources.read_text('cpb.resources', templateName)
   try:
     template = jinja2.Template(theTemplate)
@@ -390,46 +401,43 @@ def renderTemplate(templateName, eData, renderedName, scriptPaths) :
       stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
       stat.S_IROTH | stat.S_IXOTH)
   except Exception as err:
-    logging.error("Could not render the Jinja2 template [{}]".format(templateName))
-    logging.error(err)
+    print("ERROR: Could not render the Jinja2 template [{}]".format(templateName))
+    print(repr(err))
+
+def addRFile(templateName, renderedName, a7rDir) :
+  return {
+    'templateName' : templateName,
+    'renderedName' : renderedName,
+    'a7zDir'        : a7rDir
+  }
 
 def createPod(podData, config) :
 
   logging.info("creating the pod {} scripts".format(podData['podName']))
 
-  scriptPaths = []
-  renderTemplate(
-    'podCreation.sh.j2', podData, 'create-pod.sh', scriptPaths
-  )
-  renderTemplate(
-    'podRemoval.sh.j2',  podData, 'remove-pod.sh', scriptPaths
-  )
-  renderTemplate(
-    'imageRemoval.sh.j2', podData, 'remove-images.sh', scriptPaths
-  )
-  renderTemplate(
-    'podStart.sh.j2', podData, 'start-pod.sh', scriptPaths
-  )
-  renderTemplate(
-    'podStop.sh.j2', podData, 'stop-pod.sh', scriptPaths
-  )
+  rFiles = []
+  rFiles.append(addRFile('podCreation.sh.j2',      'create-pod.sh',     'scripts'))
+  rFiles.append(addRFile('podRemoval.sh.j2',       'remove-pod.sh',     'scripts'))
+  rFiles.append(addRFile('imageRemoval.sh.j2',     'remove-images.sh',  'scripts'))
+  rFiles.append(addRFile('podStart.sh.j2',         'start-pod.sh',      'scripts'))
+  rFiles.append(addRFile('podStop.sh.j2',          'stop-pod.sh',       'scripts'))
+  rFiles.append(addRFile('podReadme.md.j2',        'Readme.md',         ''       ))
+  rFiles.append(addRFile('podCommonsReadme.md.j2', 'Readme-commons.md', 'commons'))
 
-  basePaths = []
-  renderTemplate(
-    'podReadme.md.j2', podData, 'Readme.md', basePaths
-  )
+  # render the known templates
+  for anRFile in rFiles :
+    renderTemplate(anRFile, podData)
 
-  commonsPaths = []
-  renderTemplate(
-    'podCommonsReadme.md.j2', podData, 'Readme-commons.md', commonsPaths
-  )
-
+  # add the image templates
   for anImage in podData['images'] :
-    podData['anImage'] = anImage
-    renderTemplate(
-      'enterContainer.sh.j2', podData,
-      'enter-{}.sh'.format(anImage), scriptPaths
+    anRFile = addRFile(
+      'enterContainer.sh.j2',
+      'enter-{}.sh'.format(anImage),
+      'scripts'
     )
+    podData['anImage'] = anImage
+    renderTemplate(anRFile, podData)
+    rFiles.append(anRFile)
 
   # Then 7-zip up the directory...
   with py7zr.SevenZipFile(podData['7zFile'], 'w', password=podData['password']) as zf:
@@ -440,42 +448,9 @@ def createPod(podData, config) :
     saveFile('config', podData['certFile'])
     saveFile('config', podData['keyFile'])
     saveFile('config', config['cpf']['rsync']['keyFile'])
-    for aPath in scriptPaths :
-      saveFile('scripts', aPath)
-    for aPath in basePaths :
-      saveFile("", aPath)
-    for aPath in commonsPaths :
-      saveFile('commons', aPath)
-
-def createUser(userData, config) :
-  logging.info("creating the user {} scripts".format(userData['name']))
-
-  scriptPaths = []
-  userData['rsync'] = config['cpf']['rsync']
-  renderTemplate(
-    'setupUserSsh.py.j2', userData, 'setup-ssh.py', scriptPaths
-  )
-  renderTemplate(
-    'turnOffUserSsh.py.j2', userData, 'turn-off-ssh.py', scriptPaths
-  )
-
-  basePaths = []
-  renderTemplate(
-    'userReadme.md.j2', userData, 'Readme.md', basePaths
-  )
-
-  # Then 7-zip up the directory...
-  with py7zr.SevenZipFile(userData['7zFile'], 'w', password=userData['password']) as zf:
-    def saveFile(subDir, fileName) :
-      zf.write(fileName, arcname=os.path.join('userConfig', subDir, os.path.basename(fileName)))
-    saveFile('config', userData['sslConfigFile'])
-    saveFile('config', userData['csrFile'])
-    saveFile('config', userData['certFile'])
-    saveFile('config', userData['keyFile'])
-    for aPath in scriptPaths :
-      saveFile('scripts', aPath)
-    for aPath in basePaths :
-      saveFile('', aPath)
+    saveFile('config', config['cpf']['rsync']['keyFile']+'.pub')
+    for anRFile in rFiles :
+      saveFile(anRFile['a7zDir'], anRFile['filePath'])
 
 ############################################################################
 # Do the work...
@@ -520,7 +495,6 @@ def create(ctx):
     createKeyFor("user", aUser)
     createCertFor("user", aUser, caData)
     createPod(aUser, config)
-    createUser(aUser, config)
 
   click.echo("")
 
