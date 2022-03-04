@@ -129,6 +129,8 @@ def normalizeSslEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
 
     eData['natsServer'] = config['cpf']['natsServer']
 
+    eData['rsyncPublicKeyFile'] = os.path.basename(config['cpf']['rsync']['keyFile']) + '.pub'
+
 def normalizeConfig(config) :
 
   if 'cpf' not in config :
@@ -164,6 +166,9 @@ def normalizeConfig(config) :
   if 'serialNum' not in caData :
     caData['serialNum'] = int(time.time()) * 10000
 
+  config['cpf']['rsync'] = { }
+  normalizeSshEntity(config, config['cpf']['rsync'], 'certificateAuthorityDir')
+
   entityNum = 0
   normalizeSslEntity(config, caData, entityNum, 'certificateAuthorityDir', caData, None)
   entityNum += 1
@@ -195,9 +200,6 @@ def normalizeConfig(config) :
     #)
     normalizeSslEntity(config, aUser, entityNum, 'usersDir', caData, majorDomoDefaults)
     entityNum += 1
-
-  config['cpf']['rsync'] = { }
-  normalizeSshEntity(config, config['cpf']['rsync'], 'certificateAuthorityDir')
 
   if config['verbose'] :
     logging.info("configuration:\n------\n" + yaml.dump(config) + "------\n")
@@ -402,6 +404,7 @@ def createCertFor(msg, certData, caData) :
     click.echo("")
 
 def renderTemplate(aRenderedFile, eData) :
+
   templateName = aRenderedFile['templateName']
   renderedName = aRenderedFile['renderedName']
   eData['podScriptFile'] = renderedName

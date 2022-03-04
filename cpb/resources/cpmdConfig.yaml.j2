@@ -6,6 +6,8 @@ natsServer:
   host: {{ natsServer['host'] }}
   port: {{ natsServer['port'] }}
 
+rsyncPublicKey: /config/{{ rsyncPublicKeyFile }}
+
 {% if innerPorts['majorDomo'] %}
 
 webServer:
