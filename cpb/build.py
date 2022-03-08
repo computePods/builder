@@ -5,9 +5,11 @@ import importlib.resources
 import jinja2
 import logging
 import os
+from pathlib import Path
 import random
 import stat
 import string
+import subprocess
 import sys
 import time
 import yaml
@@ -339,6 +341,20 @@ def build(ctx, overwrite, push):
     click.echo("  we will NOT push images!")
 
   imageDescs = config['cpf']['cekitImageDescriptions']
+
+  # Prebuild step
+  for aRepo in config['repositories'] :
+    repoDir = Path(aRepo)
+    for aPreBuildScript in repoDir.glob('**/preBuild.*') :
+      if aPreBuildScript.is_file() \
+        and os.access(str(aPreBuildScript), os.X_OK) :
+        print(f"\nPreBuilding using the script:\n  {aPreBuildScript}")
+        print(f"in the directory:\n  {aPreBuildScript.parent}")
+        print("--------------------------------------------------------")
+        subprocess.run(aPreBuildScript, cwd=aPreBuildScript.parent)
+        print("--------------------------------------------------------")
+      else :
+        print(f"The PreBuild script:\n  {aPreBuildScript}\nis NOT executable")
 
   # Start by building any base images we know about
   for anImageKey in config['baseImagesToBuild'] :
