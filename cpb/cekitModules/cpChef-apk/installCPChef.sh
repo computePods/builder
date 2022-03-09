@@ -23,4 +23,4 @@ unpackArtifact () {
 #
 unpackArtifact cpChef
 
-pip cpChef/
+pip install ./cpChef

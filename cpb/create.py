@@ -7,13 +7,15 @@ import importlib.resources
 import jinja2
 import logging
 import os
-import py7zr
 import random
 import stat
 import string
 import sys
 import time
 import yaml
+
+from pymakeself import makeself
+# see: https://github.com/gammazero/pymakeself
 
 from cpb.utils import *
 
@@ -462,6 +464,25 @@ def createPod(podData, config, extraRFiles) :
     renderTemplate(anRFile, podData)
     rFiles.append(anRFile)
 
+#pymakeself.makeself.make_package = make_package(content_dir, file_name, setup_script, script_args=(), sha256=True, compress='gz', follow=False, tools=False, quiet=False, label=None, password=None)
+#    Create a self-extracting archive.
+#
+#    Arguments:
+#    content_dir  -- Directory containing files to archive in installer.
+#    file_name    -- Name for the executable that is created
+#    setup_script -- Python script executed from within extracted content
+#    script_args  -- Arguments to pass to setup script when run
+#    sha256       -- Enable (True) or disable (False) SHA256
+#    compress     -- Type of compression ('gz', 'bz2', 'xz')
+#    follow       -- Follow symlinks in the archive if True
+#    tools        -- Include installtools module if True
+#    quiet        -- Do not print any messages other than errors if True
+#    label        -- Text string describing the package
+#    password     -- Password protect contents if not None
+#
+#    Return:
+#    Path to self-extracting installer executable.
+
   # Then 7-zip up the directory...
   with py7zr.SevenZipFile(podData['7zFile'], 'w', password=podData['password']) as zf:
     def saveFile(subDir, fileName) :
@@ -496,6 +517,7 @@ def create(ctx):
   createKeyFor("certificate authority", caData)
   createCertFor("certificate authority", caData, None)
 
+  click.echo("\n(re)Creating the {} rsync ssh key".format(config['cpf']['federationName']))
   createSshKeyFor('rsync', config['cpf']['rsync'])
 
   for aPod in config['cpf']['computePods'] :
