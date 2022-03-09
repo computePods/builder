@@ -6,5 +6,6 @@ natsServer:
   host: {{ natsServer['host'] }}
   port: {{ natsServer['port'] }}
 
+# NOTE: all additional plugin directories MUST have different names
 pluginsDirs:
-  - /plugins
+  - /extraPlugins
