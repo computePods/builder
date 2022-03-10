@@ -31,6 +31,7 @@ summary = "Safely add untrusted strings to HTML/XML markup."
 [[package]]
 name = "pymakeself"
 version = "0.3.5"
+url = "https://github.com/stephengaito/pymakeself/archive/refs/heads/merged_main.zip"
 summary = "pymakeself: make self-extracting archives"
 
 [[package]]
@@ -41,7 +42,7 @@ summary = "YAML parser and emitter for Python"
 
 [metadata]
 lock_version = "3.1"
-content_hash = "sha256:23fa0500bcf1bc402be277e4f8c2544dcebc9334fa269abcab847de81db0c626"
+content_hash = "sha256:31b7d5b18a8b956534812b3a54061f0791c00f7cfa5d1f3cc995b4b68e9ad734"
 
 [metadata.files]
 "click 8.0.4" = [
@@ -97,9 +98,6 @@ content_hash = "sha256:23fa0500bcf1bc402be277e4f8c2544dcebc9334fa269abcab847de81
     {file = "MarkupSafe-2.1.0-cp39-cp39-win32.whl", hash = "sha256:e6f7f3f41faffaea6596da86ecc2389672fa949bd035251eab26dc6697451d05"},
     {file = "MarkupSafe-2.1.0-cp39-cp39-win_amd64.whl", hash = "sha256:b8811d48078d1cf2a6863dafb896e68406c5f513048451cd2ded0473133473c7"},
     {file = "MarkupSafe-2.1.0.tar.gz", hash = "sha256:80beaf63ddfbc64a0452b841d8036ca0611e049650e20afcb882f5d3c266d65f"},
-]
-"pymakeself 0.3.5" = [
-    {file = "pymakeself-0.3.5-py2.py3-none-any.whl", hash = "sha256:a59eddac32b07c1927fc78a5eaab7f708e9180601fdea000dc2f3b924500644f"},
 ]
 "pyyaml 5.4.1" = [
     {file = "PyYAML-5.4.1-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:3b2b1824fe7112845700f815ff6a489360226a5609b96ec2190a45e62a9fc922"},

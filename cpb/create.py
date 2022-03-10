@@ -8,6 +8,7 @@ import jinja2
 import logging
 import os
 import random
+import shutil
 import stat
 import string
 import sys
@@ -16,6 +17,29 @@ import yaml
 
 from pymakeself import makeself
 # see: https://github.com/gammazero/pymakeself
+# documentation for the pymakeself.makeself.make_package function:
+#
+# def make_package(content_dir, file_name, setup_script, script_args=(),
+#                 sha256=True, compress='gz', follow=False, tools=False,
+#                 quiet=False, label=None, password=None):
+#
+#    Create a self-extracting archive.
+#
+#    Arguments:
+#    content_dir  -- Directory containing files to archive in installer.
+#    file_name    -- Name for the executable that is created
+#    setup_script -- Python script executed from within extracted content
+#    script_args  -- Arguments to pass to setup script when run
+#    sha256       -- Enable (True) or disable (False) SHA256
+#    compress     -- Type of compression ('gz', 'bz2', 'xz')
+#    follow       -- Follow symlinks in the archive if True
+#    tools        -- Include installtools module if True
+#    quiet        -- Do not print any messages other than errors if True
+#    label        -- Text string describing the package
+#    password     -- Password protect contents if not None
+#
+#    Return:
+#    Path to self-extracting installer executable.
 
 from cpb.utils import *
 
@@ -29,6 +53,11 @@ from cpb.utils import *
 #   https://access.redhat.com/solutions/28965
 #   https://gist.github.com/thisismitch/bf52b0c1823da27ff353
 #
+
+# Eventually we *should* use https://github.com/libkeepass/pykeepass
+# to manage our passwords inside a KeepassXC database....
+# but for now we use simple clear text in a file which only the user can
+# read (about as secure as the ssh keys)
 
 ############################################################################
 # Configuration
@@ -74,21 +103,22 @@ def normalizeSslEntity(config, eData, eNum, workDirKey, caData, podDefaults) :
 
   eData['name'] = eData['name'].replace("@", "-")
   eData['workDir'] = os.path.join(config[workDirKey], eData['name'].replace(" ",""))
+  eData['configDir'] = os.path.join(eData['workDir'], 'config')
 
   setDefault(eData, 'sslConfigFile', eData['name'] + '.conf')
-  sanitizeFilePath(eData, 'sslConfigFile', eData['workDir'])
+  sanitizeFilePath(eData, 'sslConfigFile', eData['configDir'])
 
   setDefault(eData, 'csrFile', eData['name'] + '-csr.conf')
-  sanitizeFilePath(eData, 'csrFile', eData['workDir'])
+  sanitizeFilePath(eData, 'csrFile', eData['configDir'])
 
   setDefault(eData, 'certFile', eData['name'] + '-crt.pem')
-  sanitizeFilePath(eData, 'certFile', eData['workDir'])
+  sanitizeFilePath(eData, 'certFile', eData['configDir'])
 
   setDefault(eData, 'keyFile', eData['name'] + '-key.pem')
-  sanitizeFilePath(eData, 'keyFile', eData['workDir'])
+  sanitizeFilePath(eData, 'keyFile', eData['configDir'])
 
-  setDefault(eData, '7zFile', eData['name'] + '.7z')
-  sanitizeFilePath(eData, '7zFile', eData['workDir'])
+  setDefault(eData, 'makeSelfFile', '../install-' + eData['name'] + '-pod.run')
+  sanitizeFilePath(eData, 'makeSelfFile', eData['workDir'])
 
   setDefault(eData, 'keySize',        config['cpf']['keySize'])
   setDefault(eData, 'days',           caData['days'])
@@ -213,6 +243,7 @@ def createWorkDirFor(msg, eData) :
   if not os.path.isdir(eData['workDir']) :
     logging.info("creating the {} {} work directory".format(msg, eData['name']))
     os.makedirs(eData['workDir'], exist_ok=True)
+    os.makedirs(eData['configDir'], exist_ok=True)
 
 def createSshKeyFor(msg, eData) :
   if os.path.isfile(eData['keyFile']) :
@@ -409,9 +440,11 @@ def renderTemplate(aRenderedFile, eData) :
 
   templateName = aRenderedFile['templateName']
   renderedName = aRenderedFile['renderedName']
-  eData['podScriptFile'] = renderedName
+  renderedDir  = aRenderedFile['renderedDir']
+  eData['podScriptFile'] = os.path.join(renderedDir, renderedName)
   sanitizeFilePath(eData, 'podScriptFile', eData['workDir'])
   filePath = eData['podScriptFile']
+  os.makedirs(os.path.dirname(filePath), exist_ok=True)
   aRenderedFile['filePath'] = filePath
   theTemplate = importlib.resources.read_text('cpb.resources', templateName)
   try:
@@ -427,11 +460,11 @@ def renderTemplate(aRenderedFile, eData) :
     print("ERROR: Could not render the Jinja2 template [{}]".format(templateName))
     print(repr(err))
 
-def addRFile(templateName, renderedName, a7rDir) :
+def addRFile(templateName, renderedName, renderedDir) :
   return {
     'templateName' : templateName,
     'renderedName' : renderedName,
-    'a7zDir'        : a7rDir
+    'renderedDir'  : renderedDir
   }
 
 def createPod(podData, config, extraRFiles) :
@@ -464,7 +497,44 @@ def createPod(podData, config, extraRFiles) :
     renderTemplate(anRFile, podData)
     rFiles.append(anRFile)
 
-#pymakeself.makeself.make_package = make_package(content_dir, file_name, setup_script, script_args=(), sha256=True, compress='gz', follow=False, tools=False, quiet=False, label=None, password=None)
+  def copyFile(subDir, origFilePath) :
+    fileName = os.path.basename(origFilePath)
+    podData['podTmpFile'] = os.path.join(subDir, fileName)
+    sanitizeFilePath(podData, 'podTmpFile', podData['workDir'])
+    newFilePath = podData['podTmpFile']
+    shutil.copyfile(origFilePath, newFilePath)
+    os.chmod(newFilePath,
+      stat.S_IRUSR | stat.S_IWUSR)
+  copyFile('config', config['cpf']['rsync']['keyFile'])
+  copyFile('config', config['cpf']['rsync']['keyFile']+'.pub')
+
+  logging.info("creating the pod {} install acrchive".format(podData['podName']))
+
+  podData['podTmpFile'] = 'postInstall'
+  sanitizeFilePath(podData, 'podTmpFile', podData['workDir'])
+  postInstallPath = podData['podTmpFile']
+  with open(postInstallPath, 'w') as piFile :
+    piFile.write("""
+# This is the postInstall file for the makeself installation system.
+
+from pathlib import Path
+import shutil
+
+archiveDir = Path.cwd()
+
+for aChild in archiveDir.iterdir() :
+  if str(aChild).endswith('postInstall') : continue
+  shutil.move(aChild, __orig_dir__)
+
+""")
+
+  # now make a self extracting installation file
+
+#pymakeself.makeself.make_package = make_package(
+#  content_dir, file_name, setup_script, script_args=(),
+#  sha256=True, compress='gz', follow=False, tools=False,
+#  quiet=False, label=None, password=None
+#)
 #    Create a self-extracting archive.
 #
 #    Arguments:
@@ -482,19 +552,14 @@ def createPod(podData, config, extraRFiles) :
 #
 #    Return:
 #    Path to self-extracting installer executable.
-
-  # Then 7-zip up the directory...
-  with py7zr.SevenZipFile(podData['7zFile'], 'w', password=podData['password']) as zf:
-    def saveFile(subDir, fileName) :
-      zf.write(fileName, arcname=os.path.join('podConfig', subDir, os.path.basename(fileName)))
-    saveFile('config', podData['sslConfigFile'])
-    saveFile('config', podData['csrFile'])
-    saveFile('config', podData['certFile'])
-    saveFile('config', podData['keyFile'])
-    saveFile('config', config['cpf']['rsync']['keyFile'])
-    saveFile('config', config['cpf']['rsync']['keyFile']+'.pub')
-    for anRFile in rFiles :
-      saveFile(anRFile['a7zDir'], anRFile['filePath'])
+  makeself.make_package(
+    podData['workDir'],
+    podData['makeSelfFile'],
+    "postInstall",
+    [],
+    label=f"Install the {podData['name']} pod configuration and scripts",
+    password=podData['password']
+  )
 
 ############################################################################
 # Do the work...

@@ -9,7 +9,7 @@ dependencies = [
     "click~=8.0",
     "jinja2~=3.0",
     "pyyaml~=5.4",
-    "pymakeself>=0.3.5",
+    "pymakeself @ https://github.com/stephengaito/pymakeself/archive/refs/heads/merged_main.zip",
 ]
 requires-python = ">=3.9"
 dynamic = ["classifiers"]
