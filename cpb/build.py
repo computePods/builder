@@ -53,6 +53,16 @@ defaultCekitImageDescriptions = {
     'description'     : 'An Alpine module which installs Python asyncio-Nats, and FastAPI',
     'modules'         : []
   },
+  'cpChef-apk' : {
+    'version'         : '1.0',
+    'basedOn'         : 'python:alpine',
+    'buildBasedOn'    : 'python:alpine',
+    'packagesManager' : 'apk',
+    'description'     : 'An Alpine module which installs ComputePods cpChef',
+    'modules'         : [
+      'cpChef-apk'
+    ]
+  },
   'cpPyNatsFastAPI-apt-get' : {
     'version'         : '1.0',
     'basedOn'         : 'python:slim',
@@ -60,6 +70,16 @@ defaultCekitImageDescriptions = {
     'packagesManager' : 'apt-get',
     'description'     : 'A Debian module which installs Python asyncio-Nats, and FastAPI',
     'modules'         : []
+  },
+  'cpChef-apt-get' : {
+    'version'         : '1.0',
+    'basedOn'         : 'python:slim',
+    'buildBasedOn'    : 'python:slim',
+    'packagesManager' : 'apt-get',
+    'description'     : 'A Debian module which installs ComputePods cpChef',
+    'modules'         : [
+      'cpChef-apt-get'
+    ]
   }
 }
 
@@ -200,7 +220,7 @@ def normalizeConfig(config) :
       mergeCekitImageDescriptions(anImageDesc, imageDefaults)
       setDefault(anImageDesc, 'name',      anImageName)
       setDefault(anImageDesc, 'imageName', "{}-{}".format(config['federationName'], anImageName))
-      anImageDesc['modules'].insert(len(defaultImageDesc['modules']), 'cpChef-{}'.format(anImageDesc['packagesManager']))
+      #anImageDesc['modules'].insert(len(defaultImageDesc['modules']), 'cpChef-{}'.format(anImageDesc['packagesManager']))
   #
   # Add in the default image definitions (defined above)
   #
@@ -385,16 +405,20 @@ def images(ctx) :
   config = ctx.obj
   normalizeConfig(config)
 
-  imageDescs = config['cpf']['cekitImageDescriptions']
+  imagesToBuild = config['imagesToBuild'] + config['baseImagesToBuild']
 
+  imageDescs = config['cpf']['cekitImageDescriptions']
   for anImage, aDesc in imageDescs.items() :
     if anImage == 'defaults' : continue
-    if not aDesc['modules']  : continue
-
-    print("{}:\t{}".format(aDesc['imageName'], aDesc['description']))
-    print("  basedOn: {}".format(aDesc['basedOn']))
-    print("  modules:")
-    for aModule in aDesc['modules'] :
-      listSubModules("    ", aModule, config['modules'])
+    if anImage not in imagesToBuild : continue
+    #print(anImage)
     #print(yaml.dump(aDesc))
-#  print(yaml.dump(imageDescs))
+
+    print("\n{}:\t{}".format(aDesc['imageName'], aDesc['description']))
+    print("    basedOn: {}".format(aDesc['basedOn']))
+    print("    modules:")
+    for aModule in aDesc['modules'] :
+      listSubModules("      ", aModule, config['modules'])
+  print("")
+  #print("-----------------------------------------------------")
+  #print(yaml.dump(imageDescs))

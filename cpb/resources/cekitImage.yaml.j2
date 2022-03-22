@@ -20,7 +20,7 @@
   version: "{{ version }}"
   description: "Builds the {{ description }}"
 
-  from: "{{ buildBasedOn }}"
+  from: "{{ buildBasedOn | lower }}"
 
   packages:
     manager: "{{ packagesManager }}"
@@ -39,7 +39,7 @@
   version: "{{ version }}"
   description: "{{ description }}"
 
-  from: "{{ basedOn }}"
+  from: "{{ basedOn | lower }}"
 
   packages:
     manager: "{{ packagesManager }}"

@@ -18,8 +18,18 @@ packages:
   manager: apt-get
   install:
     - libssl1.1
+    # required to transport files to/from a cpChef
+    - openssh-client
+    - rsync
     # required since ComputePod Python Packages use git archives
     - git
+    # Used by the various flavours of cpChef
+    - unzip
+    - wget
+    # Nice to have for internal debugging....
+    - tree
+    - less
+    - nano
 
 artifacts:
   - name: cpChef
