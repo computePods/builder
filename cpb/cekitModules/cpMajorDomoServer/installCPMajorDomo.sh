@@ -19,3 +19,42 @@ unpackArtifact () {
 }
 
 unpackArtifact cpMajorDomo
+
+# pip install ./cpMajorDomo
+
+# useful while developing majorDomo
+
+cat << EOF > installEditableMajorDomo
+
+pip install pdm
+
+echo "export PATH=$HOME/.local/bin:$PATH" >> $HOME/.bashrc
+pdm --pep582 bash                         >> $HOME/.bashrc
+
+echo "export PATH=$HOME/.local/bin:$PATH" >> $HOME/.ashrc
+pdm --pep582 bash                         >> $HOME/.ashrc
+
+source .bashrc
+
+cd /root/majorDomo
+
+pdm install
+
+./scripts/installEditableCpmdCommand
+
+cd /root/majorDomo/__pypackages__/3.10/lib
+
+if [ ! -L cpinterfaces ] ; then
+  mv cpinterfaces cpinterfaces.static
+  ln -s /cpinterfaces .
+fi
+
+if [ ! -L cputils ] ; then
+  mv cputils cputils.static
+  ln -s /cputils .
+fi
+
+cd
+
+EOF
+

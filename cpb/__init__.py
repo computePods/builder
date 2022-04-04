@@ -51,7 +51,12 @@ defaultMajorDomoDefaults = {
   'ports'                 : {  # NOTE: all ports must be mapped explicitly (or the external port will be chosen randomly)
     'majorDomo'           : '127.0.0.1:8000:8000', # exposed ONLY on the local host
   },
-  'volumes'               : [ '~/.local/cpmd:/cpmd' ],
+  'volumes'               : [
+    '~/.local/cpmd:/cpmd',
+    '~/GitTools/computePods/interfaces/cpinterfaces:/cpinterfaces',
+    '~/GitTools/computePods/pythonUtils/cputils:/cputils',
+    '~/GitTools/computePods/majorDomo:/root/majorDomo'
+  ],
   'envs'                  : {},
   'secrets'               : [],
   'images'                : [
