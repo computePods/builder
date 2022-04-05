@@ -3,5 +3,12 @@
 # Enter the {{ podName }}-{{ anImage }} container in the {{ podName }} pod
 
 if podman container exists {{ podName }}-{{ anImage }} ; then
-  podman exec -it --env ENV=/root/.bashrc {{ podName }}-{{ anImage }} /bin/sh
+  podman exec -it \
+{%- if envs.keys() | length -%}
+{%-   for envKey, envValue in envs.items() %}
+    --env={{ envKey }}={{ envValue }} \
+{%-   endfor %}
+{%- endif %}
+    {{ podName }}-{{ anImage }} \
+    {{ shell }}
 fi

@@ -37,7 +37,10 @@ defaultNatsDefaults = {
     #'natsMonitor'        : '8222:8222',
   },
   'volumes'               : [],
-  'envs'                  : {},
+  'envs'                  : {
+    'ENV' : '/root/.ashrc'
+  },
+  'shell'                 : '/bin/ash',
   'secrets'               : [],
   'images'                : [
     'natsServer',
@@ -57,7 +60,10 @@ defaultMajorDomoDefaults = {
     '~/GitTools/computePods/pythonUtils/cputils:/cputils',
     '~/GitTools/computePods/majorDomo:/root/majorDomo'
   ],
-  'envs'                  : {},
+  'envs'                  : {
+    'ENV' : '/root/.ashrc'
+  },
+  'shell'                 : '/bin/ash',
   'secrets'               : [],
   'images'                : [
     'majorDomoServer',
@@ -72,6 +78,7 @@ defaultPodDefaults = {
   },
   'volumes'               : [],
   'envs'                  : {},
+  'shell'                 : '/bin/sh',
   'secrets'               : [],
   'images'                : [],
   'baseImages'            : [],
